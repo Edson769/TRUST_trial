@@ -1,0 +1,17 @@
+{
+  "name": "TRUST — Sensor Client",
+  "short_name": "TRUST",
+  "description": "TRUST phone sensor client — GPS, IMU, step odometry, compass",
+  "start_url": "./trust_phone.html",
+  "display": "standalone",
+  "background_color": "#07090f",
+  "theme_color": "#07090f",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%2307090f'/><text y='140' x='96' text-anchor='middle' font-size='120'>📡</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}

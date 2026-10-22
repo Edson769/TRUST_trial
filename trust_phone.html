@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#07090f">
+<title>TRUST — Phone Sensor Client</title>
+<link rel="manifest" href="trust_manifest.json">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>📡</text></svg>">
+
+<style>
+:root {
+  --bg: #07090f; --surface: #0d1117; --surface2: #111827;
+  --border: #1e2a3a; --text: #e2e8f0; --muted: #64748b;
+  --gnss: #22d3ee; --trust: #a78bfa; --good: #34d399;
+  --warn: #fbbf24; --danger: #f43f5e;
+  --sans: "Inter", system-ui, sans-serif;
+  --mono: ui-monospace, monospace;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { height: 100%; }
+body {
+  font-family: var(--sans); background: var(--bg); color: var(--text);
+  min-height: 100vh; padding: env(safe-area-inset-top, 14px) 14px env(safe-area-inset-bottom, 14px);
+  max-width: 420px; margin: 0 auto;
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+
+h1 { font-size: 20px; font-weight: 800; color: var(--gnss); margin-bottom: 2px; letter-spacing: -0.5px; }
+.sub { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-bottom: 16px; }
+
+.start-btn {
+  width: 100%; padding: 18px; font-size: 16px; font-weight: 700;
+  border-radius: 12px; border: none;
+  background: linear-gradient(135deg, var(--gnss), #0e7490);
+  color: #04231d; cursor: pointer; margin-bottom: 14px;
+  transition: opacity 0.2s;
+}
+.start-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.banner {
+  border-radius: 10px; padding: 12px 14px;
+  border: 1px solid var(--border); background: var(--surface2);
+  margin-bottom: 12px; display: flex; align-items: center;
+  justify-content: space-between; transition: all 0.4s;
+}
+.banner.ok     { border-color: var(--good);   background: rgba(52,211,153,0.07); }
+.banner.jam    { border-color: var(--warn);   background: rgba(251,191,36,0.08); }
+.banner.spoof  { border-color: var(--danger); background: rgba(244,63,94,0.08); }
+.banner .label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.banner .value { font-size: 15px; font-weight: 700; margin-top: 2px; }
+.conf-big { font-family: var(--mono); font-size: 28px; font-weight: 800; }
+
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+.panel-title { font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+
+.s-row { display: flex; align-items: center; gap: 9px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+.s-row:last-child { border-bottom: none; padding-bottom: 0; }
+.s-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+.s-dot.ok   { background: var(--good); }
+.s-dot.warn { background: var(--warn); }
+.s-dot.bad  { background: var(--danger); animation: blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.s-name { font-size: 12px; font-weight: 600; flex: 1; }
+.s-val  { font-family: var(--mono); font-size: 11.5px; color: #94a3b8; text-align: right; }
+
+.ctrl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ctrl { padding: 13px 8px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text);
+  font-family: var(--sans); font-size: 12px; font-weight: 700; cursor: pointer; text-align: center; }
+.ctrl:disabled { opacity: 0.3; cursor: not-allowed; }
+.ctrl.jam   { border-color: var(--warn);   color: var(--warn); }
+.ctrl.spoof { border-color: var(--danger); color: var(--danger); }
+.ctrl.restore { border-color: var(--trust); color: var(--trust); }
+
+.log { font-family: var(--mono); font-size: 10.5px; line-height: 1.7;
+  height: 140px; overflow-y: auto; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 7px; padding: 7px 9px; margin-top: 8px; }
+.le { padding: 3px 6px; border-radius: 4px; margin-bottom: 2px; border-left: 2px solid transparent; }
+.le.info  { border-color: var(--gnss);   background: rgba(34,211,238,0.05); }
+.le.warn  { border-color: var(--warn);   background: rgba(251,191,36,0.05); }
+.le.bad   { border-color: var(--danger); background: rgba(244,63,94,0.06); }
+.le.trust { border-color: var(--trust);  background: rgba(167,139,250,0.06); }
+.lt { color: var(--muted); margin-right: 4px; }
+
+.dl-btn { width: 100%; padding: 11px; font-size: 12px; font-weight: 700;
+  border-radius: 8px; border: 1px solid var(--border); background: var(--surface2);
+  color: var(--gnss); cursor: pointer; margin-top: 8px; }
+
+.https-warn { background: rgba(251,191,36,0.1); border: 1px solid var(--warn);
+  border-radius: 8px; padding: 10px 12px; font-size: 11.5px; color: var(--warn);
+  margin-bottom: 12px; display: none; line-height: 1.5; }
+.https-warn.show { display: block; }
+
+footer { margin-top: 16px; color: var(--muted); font-size: 9.5px; font-family: var(--mono); text-align: center; line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<h1>TRUST</h1>
+<div class="sub">Phone sensor client · GPS · IMU · Step odometry · Compass</div>
+
+<div class="https-warn" id="httpsWarn">
+  ⚠ GPS and motion sensors require HTTPS. Open this page from your GitHub Pages URL or localhost.
+  Not from a local file:// path.
+</div>
+
+<button class="start-btn" id="startBtn" onclick="startSession()">Tap to Start — Grant GPS + Motion Access</button>
+
+<div class="banner" id="banner">
+  <div>
+    <div class="label">System</div>
+    <div class="value" id="statusText">Ready to start</div>
+    <div style="font-size:10px;color:var(--muted);margin-top:2px;" id="statusSub"></div>
+  </div>
+  <div style="text-align:right;">
+    <div class="label">Confidence</div>
+    <div class="conf-big" id="confText">—</div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-title">Sensors (real device)</div>
+  <div class="s-row">
+    <div class="s-dot" id="dotGps"></div>
+    <span class="s-name">GNSS / GPS</span>
+    <span class="s-val" id="valGps">No fix</span>
+  </div>
+  <div class="s-row">
+    <div class="s-dot" id="dotHead"></div>
+    <span class="s-name">Compass heading</span>
+    <span class="s-val" id="valHead">—</span>
+  </div>
+  <div class="s-row">
+    <div class="s-dot" id="dotStep"></div>
+    <span class="s-name">Step odometry</span>
+    <span class="s-val" id="valStep">0 steps</span>
+  </div>
+  <div class="s-row">
+    <div class="s-dot" id="dotAccel"></div>
+    <span class="s-name">Accelerometer</span>
+    <span class="s-val" id="valAccel">—</span>
+  </div>
+  <div class="s-row">
+    <div class="s-dot" id="dotSpeed"></div>
+    <span class="s-name">Speed (GNSS)</span>
+    <span class="s-val" id="valSpeed">—</span>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-title">GNSS Position</div>
+  <div class="s-row">
+    <div class="s-dot ok" id="dotLat"></div>
+    <span class="s-name">Latitude</span>
+    <span class="s-val" id="valLat">—</span>
+  </div>
+  <div class="s-row">
+    <div class="s-dot ok"></div>
+    <span class="s-name">Longitude</span>
+    <span class="s-val" id="valLng">—</span>
+  </div>
+  <div class="s-row">
+    <div class="s-dot" id="dotAcc"></div>
+    <span class="s-name">Reported accuracy</span>
+    <span class="s-val" id="valAcc">—</span>
+  </div>
+  <div class="s-row">
+    <div class="s-dot"></div>
+    <span class="s-name">Altitude (if available)</span>
+    <span class="s-val" id="valAlt">—</span>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-title">TRUST Dead-Reckoning Estimate</div>
+  <div class="s-row">
+    <div class="s-dot" id="dotDr"></div>
+    <span class="s-name">DR latitude</span>
+    <span class="s-val" id="valDrLat">—</span>
+  </div>
+  <div class="s-row">
+    <div class="s-dot"></div>
+    <span class="s-name">DR longitude</span>
+    <span class="s-val" id="valDrLng">—</span>
+  </div>
+  <div class="s-row">
+    <div class="s-dot"></div>
+    <span class="s-name">Steps walked</span>
+    <span class="s-val" id="valDrSteps">—</span>
+  </div>
+  <div class="s-row">
+    <div class="s-dot"></div>
+    <span class="s-name">DR distance</span>
+    <span class="s-val" id="valDrDist">—</span>
+  </div>
+</div>
+
+<div class="ctrl-grid" style="margin-bottom:10px;">
+  <button class="ctrl jam" id="btnJam"   onclick="triggerJam()"   disabled>Jam (simulate)</button>
+  <button class="ctrl spoof" id="btnSpoof" onclick="triggerSpoof()" disabled>Spoof (simulate)</button>
+  <button class="ctrl restore" id="btnRestore" onclick="restoreGnss()" disabled>Restore GNSS</button>
+  <button class="ctrl" id="btnReset" onclick="resetSession()" disabled>Reset</button>
+</div>
+
+<div class="panel">
+  <div class="panel-title">Event Log</div>
+  <div class="log" id="logEl"></div>
+  <button class="dl-btn" onclick="downloadLog()">Download Log CSV (for Colab analysis)</button>
+</div>
+
+<footer>
+  Must run over HTTPS for GPS + motion sensors.<br>
+  Host on GitHub Pages (free): push this file → Settings → Pages → main branch.<br>
+  TRUST · KNUST · TRECK 2026
+</footer>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   TRUST Phone Client — Multi-Sensor Fusion Engine
+   Sensor pipeline: GPS + compass + step odometry + accelerometer
+   ════════════════════════════════════════════════════════════════ */
+
+// ── Parameters (tune for your walk) ──────────────────────────────
+const STRIDE_M          = 0.72;    // metres per step — measure yours
+const STEP_THRESHOLD    = 11.5;    // accel magnitude threshold (m/s²)
+const STEP_DEBOUNCE_MS  = 280;     // min ms between counted steps
+const STALE_FIX_S       = 30;      // seconds before fix is considered stale
+const TICK_MS           = 500;     // main loop interval
+
+// ── State ─────────────────────────────────────────────────────────
+const S = {
+  mode: "normal",          // normal | jammed | spoofed | recovering
+  started: false,
+  gnssLat: null, gnssLng: null,
+  gnssAcc: null, gnssAlt: null,
+  gnssSpeed: null, gnssHead: null,
+  lastFixTime: null,
+  heading: 0,              // from compass (deviceorientation.alpha)
+  drLat: null, drLng: null,
+  lastTrustLat: null, lastTrustLng: null,
+  stepCount: 0,
+  stepDistM: 0,
+  drDistM: 0,
+  accelMag: 0,
+  confidence: 0,
+  logRows: [],
+};
+const SPOOF_N = 200, SPOOF_E = 300;  // default offset metres
+let lastStepMs = 0;
+const R = 6371000;
+const el = id => document.getElementById(id);
+
+// ── Geodesic helpers ──────────────────────────────────────────────
+function haversine(a, b, c, d) {
+  const r = x => x * Math.PI/180;
+  const dL = r(c-a), dG = r(d-b);
+  const x = Math.sin(dL/2)**2 + Math.cos(r(a))*Math.cos(r(c))*Math.sin(dG/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+}
+function offsetLL(lat, lng, dN, dE) {
+  return [lat + (dN/R)*(180/Math.PI),
+          lng + (dE/(R*Math.cos(lat*Math.PI/180)))*(180/Math.PI)];
+}
+
+// ── Dead-reckoning step ───────────────────────────────────────────
+function drStep() {
+  if (S.drLat === null) return;
+  const rad = S.heading * Math.PI/180;
+  const [nLat, nLng] = offsetLL(S.drLat, S.drLng, STRIDE_M*Math.cos(rad), STRIDE_M*Math.sin(rad));
+  S.drLat = nLat; S.drLng = nLng;
+  S.stepDistM += STRIDE_M; S.drDistM += STRIDE_M;
+}
+function drSeed() {
+  if (S.gnssLat !== null) { S.drLat = S.gnssLat; S.drLng = S.gnssLng; }
+}
+
+// ── Confidence engine ─────────────────────────────────────────────
+function computeConf() {
+  if (!S.gnssLat) { S.confidence = 0; return; }
+  const age = S.lastFixTime ? (Date.now()-S.lastFixTime)/1000 : 999;
+
+  if (S.mode === "normal") {
+    let c = 100;
+    if (age > 10) c -= 15; if (age > 30) c -= 25;
+    if (S.gnssAcc > 30) c -= 15; if (S.gnssAcc > 60) c -= 20;
+    S.confidence = Math.max(45, Math.min(100, c));
+  } else if (S.mode === "jammed") {
+    const drift = (S.lastTrustLat !== null && S.drLat !== null)
+      ? haversine(S.lastTrustLat, S.lastTrustLng, S.drLat, S.drLng) : 0;
+    S.confidence = Math.max(12, 80 - drift * 0.4);
+  } else if (S.mode === "spoofed") {
+    const [sLat, sLng] = offsetLL(S.gnssLat, S.gnssLng, SPOOF_N, SPOOF_E);
+    const mismatch = (S.drLat !== null) ? haversine(sLat, sLng, S.drLat, S.drLng) : 0;
+    S.confidence = Math.max(8, 65 - mismatch * 0.25);
+  } else if (S.mode === "recovering") {
+    S.confidence = Math.min(100, S.confidence + 3);
+    if (S.confidence >= 88) { S.mode = "normal"; log("TRUST: GNSS re-validated → NORMAL.", "info"); }
+  }
+}
+
+// ── Main tick ─────────────────────────────────────────────────────
+function tick() {
+  if (!S.started) return;
+  computeConf();
+
+  // In normal/recovering: seed DR from GNSS each tick
+  if ((S.mode === "normal" || S.mode === "recovering") && S.gnssLat !== null) {
+    S.lastTrustLat = S.gnssLat; S.lastTrustLng = S.gnssLng;
+    S.drLat = S.gnssLat; S.drLng = S.gnssLng;
+  }
+
+  updateUI();
+  broadcastData();
+}
+
+// ── UI update ─────────────────────────────────────────────────────
+function updateUI() {
+  const c = S.confidence;
+  el("confText").textContent = Math.round(c) + "%";
+  el("confText").style.color = c > 80 ? "var(--gnss)" : c > 50 ? "var(--warn)" : "var(--danger)";
+
+  const banner = el("banner");
+  let bCls = "banner", modeTxt = "GNSS TRUSTED", modeSub = "";
+  if (S.mode === "jammed") {
+    bCls = "banner jam"; modeTxt = "GNSS JAMMED";
+    modeSub = "TRUST dead-reckoning active";
+  } else if (S.mode === "spoofed") {
+    bCls = "banner spoof"; modeTxt = "⚠ SPOOFING DETECTED";
+    const [sLat, sLng] = offsetLL(S.gnssLat||0, S.gnssLng||0, SPOOF_N, SPOOF_E);
+    const mm = S.drLat ? Math.round(haversine(sLat, sLng, S.drLat, S.drLng)) : 0;
+    modeSub = "Mismatch: " + mm + " m vs TRUST estimate";
+  } else if (S.mode === "recovering") {
+    bCls = "banner"; modeTxt = "RECOVERING";
+    modeSub = "Re-validating GNSS fix…";
+  } else {
+    bCls = S.gnssLat ? "banner ok" : "banner";
+    modeSub = S.gnssLat ? "Fix age: " + Math.round((Date.now()-S.lastFixTime)/1000) + "s · acc ±" + Math.round(S.gnssAcc||0) + "m" : "Waiting for first GPS fix…";
+  }
+  banner.className = bCls;
+  el("statusText").textContent = modeTxt;
+  el("statusSub").textContent = modeSub;
+
+  // GPS
+  if (S.gnssLat !== null) {
+    el("dotGps").className = "s-dot ok";
+    el("valGps").textContent = "±" + Math.round(S.gnssAcc||0) + " m";
+    el("valLat").textContent = S.gnssLat.toFixed(7);
+    el("valLng").textContent = S.gnssLng.toFixed(7);
+    el("valAcc").textContent = "±" + Math.round(S.gnssAcc||0) + " m (reported)";
+    el("dotAcc").className = (S.gnssAcc > 50) ? "s-dot warn" : "s-dot ok";
+    if (S.gnssAlt !== null) el("valAlt").textContent = S.gnssAlt.toFixed(1) + " m";
+    if (S.gnssSpeed !== null) {
+      el("valSpeed").textContent = (S.gnssSpeed * 3.6).toFixed(1) + " km/h";
+      el("dotSpeed").className = "s-dot ok";
+    }
+  }
+  // DR
+  if (S.drLat !== null) {
+    el("dotDr").className = "s-dot ok";
+    el("valDrLat").textContent = S.drLat.toFixed(7);
+    el("valDrLng").textContent = S.drLng.toFixed(7);
+    el("valDrSteps").textContent = S.stepCount + " steps";
+    el("valDrDist").textContent = S.drDistM.toFixed(1) + " m";
+  }
+  el("valStep").textContent = S.stepCount + " steps · " + S.stepDistM.toFixed(1) + " m";
+}
+
+// ── Send data to dashboard ────────────────────────────────────────
+// Via localStorage (same origin) and BroadcastChannel
+function broadcastData() {
+  const pkg = {
+    ts: Date.now(),
+    lat: S.gnssLat, lng: S.gnssLng, acc: S.gnssAcc,
+    alt: S.gnssAlt, speed: S.gnssSpeed, heading: S.gnssHead,
+    heading_dev: S.heading,
+    steps: S.stepCount, accel: S.accelMag,
+    dr_lat: S.drLat, dr_lng: S.drLng,
+    mode: S.mode, confidence: S.confidence,
+  };
+  try { localStorage.setItem("trust_phone_data", JSON.stringify(pkg)); } catch(e){}
+  try { bc.postMessage(pkg); } catch(e){}
+  // Log row for CSV
+  S.logRows.push([
+    Date.now(), S.mode, S.confidence.toFixed(1),
+    S.gnssLat||"", S.gnssLng||"",
+    S.drLat||"", S.drLng||"",
+    S.gnssAcc||"", S.stepCount, S.drDistM.toFixed(1),
+    S.gnssSpeed !== null ? (S.gnssSpeed*3.6).toFixed(1) : "",
+    Math.round(S.heading)
+  ]);
+}
+
+// ── BroadcastChannel ──────────────────────────────────────────────
+let bc;
+try { bc = new BroadcastChannel("trust-sensors"); } catch(e) { bc = { postMessage: ()=>{} }; }
+
+// ── GPS handler ───────────────────────────────────────────────────
+function onGps(pos) {
+  S.gnssLat  = pos.coords.latitude;
+  S.gnssLng  = pos.coords.longitude;
+  S.gnssAcc  = pos.coords.accuracy;
+  S.gnssAlt  = pos.coords.altitude;
+  S.gnssSpeed = pos.coords.speed;
+  S.gnssHead = pos.coords.heading;
+  S.lastFixTime = Date.now();
+
+  el("dotGps").className = "s-dot ok";
+  log("GPS fix · " + S.gnssLat.toFixed(6) + ", " + S.gnssLng.toFixed(6) + " · ±" + Math.round(S.gnssAcc) + "m", "info");
+}
+function onGpsErr(err) {
+  el("dotGps").className = "s-dot bad";
+  log("GPS error: " + err.message, "bad");
+}
+
+// ── Motion / orientation handlers ────────────────────────────────
+window.addEventListener("deviceorientation", e => {
+  if (e.alpha !== null && e.alpha !== undefined) {
+    S.heading = e.alpha;
+    el("valHead").textContent = Math.round(e.alpha) + "°";
+    el("dotHead").className = "s-dot ok";
+  }
+});
+window.addEventListener("devicemotion", e => {
+  const a = e.accelerationIncludingGravity;
+  if (!a || a.x === null) return;
+  const mag = Math.sqrt(a.x**2 + a.y**2 + a.z**2);
+  S.accelMag = mag;
+  el("valAccel").textContent = mag.toFixed(1) + " m/s²";
+  el("dotAccel").className = "s-dot ok";
+  const now = Date.now();
+  if (mag > STEP_THRESHOLD && (now - lastStepMs) > STEP_DEBOUNCE_MS) {
+    lastStepMs = now;
+    S.stepCount++;
+    el("dotStep").className = "s-dot ok";
+    // Apply DR step when GNSS is unavailable
+    if (S.mode === "jammed" || S.mode === "spoofed") {
+      drStep();
+    }
+  }
+});
+
+// ── Controls ──────────────────────────────────────────────────────
+function triggerJam() {
+  S.mode = "jammed";
+  S.lastTrustLat = S.gnssLat; S.lastTrustLng = S.gnssLng;
+  drSeed();
+  log("GNSS JAMMING simulated — dead-reckoning active from heading + steps.", "bad");
+  updateUI();
+}
+function triggerSpoof() {
+  S.mode = "spoofed";
+  S.lastTrustLat = S.gnssLat; S.lastTrustLng = S.gnssLng;
+  drSeed();
+  const [sLat, sLng] = offsetLL(S.gnssLat||0, S.gnssLng||0, SPOOF_N, SPOOF_E);
+  const mm = S.drLat ? Math.round(haversine(sLat, sLng, S.drLat, S.drLng)) : 0;
+  log("SPOOFING simulated — injected +" + SPOOF_N + "m N, +" + SPOOF_E + "m E. TRUST detects " + mm + "m mismatch.", "bad");
+  updateUI();
+}
+function restoreGnss() {
+  S.mode = "recovering";
+  log("GNSS restored — TRUST re-validating before full trust.", "trust");
+  updateUI();
+}
+function resetSession() {
+  if (!confirm("Reset session?")) return;
+  S.stepCount = 0; S.stepDistM = 0; S.drDistM = 0;
+  S.mode = "normal"; S.logRows = []; S.confidence = 0;
+  el("logEl").innerHTML = "";
+  log("Session reset.", "info");
+}
+function setCtrlsEnabled() {
+  ["btnJam","btnSpoof","btnRestore","btnReset"].forEach(id => el(id).disabled = false);
+}
+
+// ── Logging ───────────────────────────────────────────────────────
+function log(msg, lvl) {
+  const t = new Date().toLocaleTimeString("en-GB", {hour12:false});
+  const div = document.createElement("div");
+  div.className = "le " + (lvl||"info");
+  div.innerHTML = `<span class="lt">${t}</span>${msg}`;
+  el("logEl").prepend(div);
+  while (el("logEl").children.length > 50) el("logEl").removeChild(el("logEl").lastChild);
+}
+
+function downloadLog() {
+  const hdr = "timestamp_ms,mode,confidence,real_lat,real_lng,dr_lat,dr_lng,acc_m,steps,dr_dist_m,speed_kph,heading_deg\n";
+  const body = S.logRows.map(r => r.join(",")).join("\n");
+  const blob = new Blob([hdr + body], {type:"text/csv"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = "trust_live_demo_log.csv"; a.click();
+}
+
+// ── Start session ─────────────────────────────────────────────────
+function startSession() {
+  el("startBtn").disabled = true;
+  el("startBtn").textContent = "Starting…";
+
+  const begin = () => {
+    if (!navigator.geolocation) { log("Geolocation API not available.", "bad"); return; }
+    navigator.geolocation.watchPosition(onGps, onGpsErr,
+      { enableHighAccuracy: true, maximumAge: 1500, timeout: 10000 });
+    S.started = true;
+    setInterval(tick, TICK_MS);
+    setCtrlsEnabled();
+    el("startBtn").textContent = "Running…";
+    log("TRUST started. Waiting for GPS fix…", "info");
+    log("Sensors: GPS + compass + accelerometer (step detection) active.", "info");
+    log("All sensor data is from this real device — no simulation unless you press Jam/Spoof.", "info");
+  };
+
+  // iOS 13+ motion permission
+  if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+    Promise.all([
+      DeviceMotionEvent.requestPermission().catch(() => "denied"),
+      DeviceOrientationEvent.requestPermission().catch(() => "denied")
+    ]).then(([m, o]) => {
+      if (m !== "granted") log("Motion permission denied — step odometry won't work.", "warn");
+      if (o !== "granted") log("Orientation permission denied — compass won't work.", "warn");
+      begin();
+    });
+  } else {
+    begin();
+  }
+}
+
+// ── HTTPS check ───────────────────────────────────────────────────
+if (!window.isSecureContext) el("httpsWarn").classList.add("show");
+
+log("TRUST phone client loaded. Tap Start to begin.", "info");
+</script>
+</body>
+</html>
