@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TRUST — Transport Resilient Unified Sensor Technology</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🛰️</text></svg>">
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+
+<style>
+:root {
+  --bg: #07090f;
+  --surface: #0d1117;
+  --surface2: #111827;
+  --border: #1e2a3a;
+  --border2: #243044;
+  --text: #e2e8f0;
+  --muted: #64748b;
+  --dim: #94a3b8;
+
+  --gnss: #22d3ee;       /* trusted GNSS — cyan */
+  --trust: #a78bfa;      /* TRUST DR — violet */
+  --ref: #fb923c;        /* reference point — orange */
+  --spoof: #f43f5e;      /* simulated spoof — red */
+  --good: #34d399;       /* healthy / ok */
+  --warn: #fbbf24;       /* warning */
+  --danger: #f43f5e;     /* alert / danger */
+
+  --sans: "Inter", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+  --radius: 8px;
+
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f1f5f9;
+    --surface: #ffffff;
+    --surface2: #f8fafc;
+    --border: #e2e8f0;
+    --border2: #cbd5e1;
+    --text: #0f172a;
+    --muted: #64748b;
+    --dim: #475569;
+    color-scheme: light;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); font-size: 13px; }
+
+/* ── Layout ────────────────────────────────────────────────── */
+.layout {
+  display: grid;
+  grid-template-columns: 300px 1fr 260px;
+  grid-template-rows: 56px 1fr;
+  height: 100vh;
+  gap: 0;
+}
+
+/* ── Header ── */
+.header {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 20px;
+}
+.header-brand { display: flex; align-items: center; gap: 10px; }
+.header-brand .logo { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: var(--gnss); }
+.header-brand .tagline { font-size: 10px; color: var(--muted); font-weight: 500; line-height: 1.3; max-width: 200px; }
+.header-status {
+  display: flex; align-items: center; gap: 8px; margin-left: auto;
+  font-size: 11px; font-family: var(--mono); color: var(--muted);
+}
+.pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--good); animation: pulse 2s infinite; }
+.pulse.off { background: var(--danger); animation: none; }
+.pulse.warn { background: var(--warn); }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* ── Left Panel ── */
+.left-panel {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Map ── */
+.map-area { position: relative; }
+#map { width: 100%; height: 100%; min-height: 300px; }
+
+/* ── Right Panel ── */
+.right-panel {
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Section heading ── */
+.section-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Mode banner ── */
+.mode-banner {
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background 0.4s, border-color 0.4s;
+}
+.mode-banner.normal  { border-color: var(--gnss);   background: rgba(34,211,238,0.06); }
+.mode-banner.jammed  { border-color: var(--warn);   background: rgba(251,191,36,0.07); }
+.mode-banner.spoofed { border-color: var(--danger); background: rgba(244,63,94,0.07); }
+.mode-banner.recovering { border-color: var(--trust); background: rgba(167,139,250,0.07); }
+
+.mode-name { font-size: 13px; font-weight: 700; }
+.mode-sub  { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+.conf-ring {
+  position: relative; width: 52px; height: 52px; flex-shrink: 0;
+}
+.conf-ring svg { transform: rotate(-90deg); }
+.conf-value {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 13px; font-weight: 700;
+}
+
+/* ── Sensor rows ── */
+.sensor-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+.sensor-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+.sensor-dot.ok   { background: var(--good); }
+.sensor-dot.warn { background: var(--warn); }
+.sensor-dot.bad  { background: var(--danger); animation: pulse 1s infinite; }
+.sensor-name { font-size: 11px; font-weight: 600; flex: 1; }
+.sensor-val  { font-family: var(--mono); font-size: 11px; color: var(--dim); text-align: right; }
+
+/* ── Coord display ── */
+.coord-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.coord-cell {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 10px;
+}
+.coord-label { font-size: 9px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.coord-val   { font-family: var(--mono); font-size: 12.5px; font-weight: 600; margin-top: 2px; }
+.coord-val.trust-color { color: var(--trust); }
+.coord-val.gnss-color  { color: var(--gnss); }
+
+/* ── Controls ── */
+.ctrl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.ctrl-btn {
+  padding: 10px 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  text-align: center;
+}
+.ctrl-btn:hover { background: var(--surface); }
+.ctrl-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.ctrl-btn.jam   { border-color: var(--warn);   color: var(--warn); }
+.ctrl-btn.spoof { border-color: var(--danger);  color: var(--danger); }
+.ctrl-btn.restore { border-color: var(--trust); color: var(--trust); }
+.ctrl-btn.active { background: rgba(251,191,36,0.12); }
+
+/* ── Event log ── */
+.log-box {
+  font-family: var(--mono); font-size: 10.5px; line-height: 1.6;
+  height: 170px; overflow-y: auto;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 8px;
+}
+.log-entry { padding: 3px 6px; border-radius: 4px; margin-bottom: 3px; border-left: 2px solid transparent; }
+.log-entry.info  { border-color: var(--gnss);   background: rgba(34,211,238,0.05); }
+.log-entry.warn  { border-color: var(--warn);   background: rgba(251,191,36,0.06); }
+.log-entry.bad   { border-color: var(--danger); background: rgba(244,63,94,0.07); }
+.log-entry.trust { border-color: var(--trust);  background: rgba(167,139,250,0.06); }
+.log-time { color: var(--muted); margin-right: 5px; }
+
+/* ── Small btn ── */
+.small-btn {
+  padding: 6px 10px; border-radius: 5px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--dim);
+  font-size: 10.5px; font-weight: 600; cursor: pointer; font-family: var(--sans);
+}
+.small-btn:hover { background: var(--surface); color: var(--text); }
+
+/* ── Distance chip ── */
+.dist-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 5px; padding: 5px 9px; font-family: var(--mono); font-size: 11px;
+}
+.dist-num { font-weight: 700; color: var(--ref); }
+
+/* ── Map overlay ── */
+.map-overlay {
+  position: absolute; top: 10px; left: 10px; z-index: 1000;
+  background: rgba(7,9,15,0.85); border: 1px solid var(--border);
+  border-radius: 6px; padding: 7px 10px;
+  font-size: 10px; color: var(--dim); font-family: var(--mono);
+  backdrop-filter: blur(6px);
+}
+.map-overlay div { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.map-overlay div:last-child { margin-bottom: 0; }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── Phone link ── */
+.qr-box {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px; text-align: center;
+}
+.qr-box .qr-url { font-family: var(--mono); font-size: 9.5px; color: var(--gnss); word-break: break-all; margin-top: 6px; }
+.qr-box .qr-label { font-size: 10px; color: var(--muted); }
+
+/* ── Slider ── */
+.slider-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.slider-row label { font-size: 10.5px; color: var(--muted); min-width: 110px; }
+input[type=range] { flex: 1; accent-color: var(--danger); }
+.slider-val { font-family: var(--mono); font-size: 11px; min-width: 50px; text-align: right; color: var(--dim); }
+
+/* ── Connection status bar ── */
+.connect-bar {
+  background: rgba(34,211,238,0.08); border: 1px solid var(--gnss);
+  border-radius: 6px; padding: 7px 10px; font-size: 10.5px;
+  display: flex; align-items: center; gap: 8px;
+}
+.connect-bar.disconnected { background: rgba(100,116,139,0.08); border-color: var(--border); }
+.connect-bar.jam    { background: rgba(251,191,36,0.08); border-color: var(--warn); }
+.connect-bar.spoof  { background: rgba(244,63,94,0.08);  border-color: var(--danger); }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; grid-template-rows: 56px 260px auto auto; }
+  .left-panel, .right-panel { max-height: none; }
+  .map-area { min-height: 260px; }
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ── HEADER ── -->
+  <header class="header">
+    <div class="header-brand">
+      <div class="logo">TRUST</div>
+      <div class="tagline">Transport Resilient Unified Sensor Technology<br>KNUST · TRECK</div>
+    </div>
+    <div class="header-status">
+      <div class="pulse" id="hdrPulse"></div>
+      <span id="hdrStatus">Waiting for phone…</span>
+      &nbsp;|&nbsp;
+      <span id="hdrClock">--:--:--</span>
+    </div>
+  </header>
+
+  <!-- ── LEFT PANEL ── -->
+  <aside class="left-panel">
+
+    <!-- Mode banner -->
+    <div class="mode-banner normal" id="modeBanner">
+      <div>
+        <div class="mode-name" id="modeName">GNSS TRUSTED</div>
+        <div class="mode-sub" id="modeSub">Waiting for first fix…</div>
+      </div>
+      <div class="conf-ring" id="confRing">
+        <svg width="52" height="52" viewBox="0 0 52 52">
+          <circle cx="26" cy="26" r="21" fill="none" stroke="var(--border2)" stroke-width="4"/>
+          <circle id="confArc" cx="26" cy="26" r="21" fill="none" stroke="var(--gnss)" stroke-width="4"
+                  stroke-dasharray="132" stroke-dashoffset="0" stroke-linecap="round"/>
+        </svg>
+        <div class="conf-value" id="confVal">—</div>
+      </div>
+    </div>
+
+    <!-- Sensor status -->
+    <div>
+      <div class="section-label">Sensor Status</div>
+      <div style="display:flex;flex-direction:column;gap:5px;">
+        <div class="sensor-row">
+          <div class="sensor-dot" id="dotGnss"></div>
+          <span class="sensor-name">GNSS (GPS)</span>
+          <span class="sensor-val" id="valGnss">No fix</span>
+        </div>
+        <div class="sensor-row">
+          <div class="sensor-dot" id="dotHead"></div>
+          <span class="sensor-name">Heading (compass)</span>
+          <span class="sensor-val" id="valHead">—</span>
+        </div>
+        <div class="sensor-row">
+          <div class="sensor-dot" id="dotStep"></div>
+          <span class="sensor-name">Step odometry</span>
+          <span class="sensor-val" id="valStep">0 steps</span>
+        </div>
+        <div class="sensor-row">
+          <div class="sensor-dot" id="dotAccel"></div>
+          <span class="sensor-name">Accelerometer</span>
+          <span class="sensor-val" id="valAccel">—</span>
+        </div>
+        <div class="sensor-row">
+          <div class="sensor-dot" id="dotSpeed"></div>
+          <span class="sensor-name">Speed (GNSS)</span>
+          <span class="sensor-val" id="valSpeed">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- GNSS coordinates -->
+    <div>
+      <div class="section-label">GNSS Position</div>
+      <div class="coord-grid">
+        <div class="coord-cell">
+          <div class="coord-label">Latitude</div>
+          <div class="coord-val gnss-color" id="gnssLat">—</div>
+        </div>
+        <div class="coord-cell">
+          <div class="coord-label">Longitude</div>
+          <div class="coord-val gnss-color" id="gnssLng">—</div>
+        </div>
+        <div class="coord-cell">
+          <div class="coord-label">Accuracy</div>
+          <div class="coord-val" id="gnssAcc">—</div>
+        </div>
+        <div class="coord-cell">
+          <div class="coord-label">Fix age</div>
+          <div class="coord-val" id="gnssAge">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRUST DR position -->
+    <div>
+      <div class="section-label">TRUST Estimated Position</div>
+      <div class="coord-grid">
+        <div class="coord-cell">
+          <div class="coord-label">Latitude</div>
+          <div class="coord-val trust-color" id="drLat">—</div>
+        </div>
+        <div class="coord-cell">
+          <div class="coord-label">Longitude</div>
+          <div class="coord-val trust-color" id="drLng">—</div>
+        </div>
+        <div class="coord-cell">
+          <div class="coord-label">DR drift</div>
+          <div class="coord-val" id="drDrift">—</div>
+        </div>
+        <div class="coord-cell">
+          <div class="coord-label">Heading</div>
+          <div class="coord-val" id="drHead">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Distance from reference -->
+    <div>
+      <div class="section-label">Distance from Reference</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <div class="dist-chip">GNSS: <span class="dist-num" id="distGnss">—</span></div>
+        <div class="dist-chip">TRUST: <span class="dist-num" id="distTrust">—</span></div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ── MAP ── -->
+  <main class="map-area">
+    <div id="map"></div>
+    <div class="map-overlay">
+      <div><span class="legend-dot" style="background:var(--gnss)"></span> GNSS position</div>
+      <div><span class="legend-dot" style="background:var(--trust)"></span> TRUST dead-reckoning</div>
+      <div><span class="legend-dot" style="background:var(--ref)"></span> Reference point</div>
+      <div><span class="legend-dot" style="background:var(--spoof)"></span> Simulated spoof position</div>
+    </div>
+  </main>
+
+  <!-- ── RIGHT PANEL ── -->
+  <aside class="right-panel">
+
+    <!-- Connection status -->
+    <div class="connect-bar disconnected" id="connectBar">
+      <div class="pulse off" id="connectPulse"></div>
+      <span id="connectText">Open trust_phone.html on your phone to connect</span>
+    </div>
+
+    <!-- Simulation controls -->
+    <div>
+      <div class="section-label">Simulation Controls</div>
+      <div class="ctrl-grid">
+        <button class="ctrl-btn jam" id="btnJam" onclick="triggerJam()">Simulate Jamming</button>
+        <button class="ctrl-btn spoof" id="btnSpoof" onclick="triggerSpoof()">Simulate Spoofing</button>
+        <button class="ctrl-btn restore" id="btnRestore" onclick="restoreGnss()" disabled>Restore GNSS</button>
+        <button class="ctrl-btn" id="btnReset" onclick="confirmReset()">Reset Demo</button>
+      </div>
+
+      <!-- Spoof offset control -->
+      <div id="spoofControls" style="display:none; margin-top:8px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:8px;">
+        <div class="section-label" style="margin-bottom:4px;">Spoof offset (metres)</div>
+        <div class="slider-row">
+          <label>North offset</label>
+          <input type="range" id="spoofNorth" min="-500" max="500" value="200" oninput="updateSpoofLabel()">
+          <span class="slider-val" id="lblSpoofNorth">200 m</span>
+        </div>
+        <div class="slider-row">
+          <label>East offset</label>
+          <input type="range" id="spoofEast" min="-500" max="500" value="300" oninput="updateSpoofLabel()">
+          <span class="slider-val" id="lblSpoofEast">300 m</span>
+        </div>
+        <div style="font-size:9.5px;color:var(--muted);margin-top:4px;">SIMULATED — no actual RF signal. True position preserved.</div>
+      </div>
+    </div>
+
+    <!-- Reference point -->
+    <div>
+      <div class="section-label">Reference Point</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:6px;">
+        <input id="refLat" type="number" step="0.0001" placeholder="Latitude"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:6px 8px;color:var(--text);font-family:var(--mono);font-size:11px;width:100%;">
+        <input id="refLng" type="number" step="0.0001" placeholder="Longitude"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:6px 8px;color:var(--text);font-family:var(--mono);font-size:11px;width:100%;">
+      </div>
+      <div style="display:flex;gap:5px;">
+        <button class="small-btn" onclick="setRefPoint()">Set from inputs</button>
+        <button class="small-btn" onclick="setRefFromPhone()">Use phone location</button>
+        <button class="small-btn" onclick="centerRef()">Centre map</button>
+      </div>
+      <div style="font-size:9.5px;color:var(--muted);margin-top:5px;">Or click the map to place the reference point.</div>
+    </div>
+
+    <!-- Map controls -->
+    <div>
+      <div class="section-label">Map Controls</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;">
+        <button class="small-btn" onclick="fitAll()">Fit all markers</button>
+        <button class="small-btn" onclick="centerPhone()">Centre on phone</button>
+        <button class="small-btn" id="btnTrail" onclick="toggleTrail()">Hide trail</button>
+      </div>
+    </div>
+
+    <!-- Event log -->
+    <div style="flex:1;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <div class="section-label" style="margin-bottom:0;border:none;">Event Log</div>
+        <div style="display:flex;gap:5px;">
+          <button class="small-btn" onclick="downloadCSV()">Export CSV</button>
+          <button class="small-btn" onclick="downloadPositionCSV()">Export Positions</button>
+          <button class="small-btn" onclick="clearLog()">Clear</button>
+        </div>
+      </div>
+      <div class="log-box" id="logBox"></div>
+    </div>
+
+    <!-- Summary stats -->
+    <div>
+      <div class="section-label">Session Summary</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+        <div class="coord-cell">
+          <div class="coord-label">Fixes received</div>
+          <div class="coord-val" id="statFixes">0</div>
+        </div>
+        <div class="coord-cell">
+          <div class="coord-label">Steps counted</div>
+          <div class="coord-val" id="statSteps">0</div>
+        </div>
+        <div class="coord-cell">
+          <div class="coord-label">DR distance</div>
+          <div class="coord-val" id="statDist">0 m</div>
+        </div>
+        <div class="coord-cell">
+          <div class="coord-label">Events logged</div>
+          <div class="coord-val" id="statEvents">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size:9px;color:var(--muted);text-align:center;font-family:var(--mono);line-height:1.8;">
+      Map © <a href="https://www.openstreetmap.org/copyright" target="_blank" style="color:var(--muted);">OpenStreetMap</a> contributors · ODbL<br>
+      TRUST v1.0 · KNUST · TRECK · 2026
+    </div>
+
+  </aside>
+</div>
+
+<!-- Leaflet JS (used for vector overlays: markers, trails, circles, popups) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   TRUST DASHBOARD — Sensor Fusion Engine
+   Map: Google Maps (base tiles) + Leaflet (markers / trails / circles)
+   Kwame Nkrumah University of Science and Technology
+   Regional Transport Research and Education Centre (TRECK)
+   ════════════════════════════════════════════════════════════════ */
+
+// (Google Maps removed — using Leaflet + OpenStreetMap directly)
+
+// ── State ────────────────────────────────────────────────────────
+const state = {
+  mode: "normal",          // normal | jammed | spoofed | recovering
+  confidence: 0,
+  hasGnssFix: false,
+  gnssLat: null, gnssLng: null,
+  gnssAcc: null,
+  gnssSpeed: null, gnssHeading: null,
+  lastFixTime: null,
+  drLat: null, drLng: null,     // TRUST dead-reckoning estimate
+  lastTrustedLat: null, lastTrustedLng: null,
+  heading: 0,               // current heading in degrees (0 = north)
+  stepCount: 0,
+  stepDistM: 0,
+  accelMag: 0,
+  refLat: null, refLng: null,   // reference point
+  showTrail: true,
+  logRows: [],              // event log rows for CSV export
+  positionLog: [],          // position history rows — same format as phone client CSV
+  eventCount: 0,
+  fixCount: 0,
+  drCumulativeM: 0,         // total dead-reckoning distance
+  lastDrPoint: null,        // for drift calculation
+  spoofActive: false,
+};
+
+const STRIDE_M = 0.72;
+const STEP_THRESHOLD = 11.5;
+const STEP_DEBOUNCE_MS = 280;
+const RECOVERY_CONF_THRESHOLD = 88;
+const R_EARTH = 6371000;
+
+let lastStepTime = 0;
+let trailGnss = [], trailDr = [];
+let placingRef = false;
+
+// ── Map setup — Leaflet + OpenStreetMap ──────────────────────────
+// Default centre: KNUST campus, Kumasi, Ghana
+const DEFAULT_LAT = 6.6745, DEFAULT_LNG = -1.5716, DEFAULT_ZOOM = 16;
+
+const map = L.map("map", { zoomControl: true, attributionControl: true });
+
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19,
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+}).addTo(map);
+
+map.setView([DEFAULT_LAT, DEFAULT_LNG], DEFAULT_ZOOM);
+
+// ── Pan/zoom helpers ──────────────────────────────────────────────
+function mapPanTo(lat, lng) { map.panTo([lat, lng], { animate: true, duration: 0.5 }); }
+function mapSetView(lat, lng, zoom) { map.setView([lat, lng], zoom || map.getZoom()); }
+function mapFitBounds(latlngs) { map.fitBounds(L.latLngBounds(latlngs).pad(0.15)); }
+
+// Custom icons
+function makeIcon(color, size=14, shape="circle") {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size+6}' height='${size+6}'>
+    <circle cx='${(size+6)/2}' cy='${(size+6)/2}' r='${size/2}' fill='${color}' stroke='#fff' stroke-width='2'/>
+  </svg>`;
+  return L.divIcon({
+    html: svg, className: "",
+    iconSize: [size+6, size+6], iconAnchor: [(size+6)/2, (size+6)/2],
+    popupAnchor: [0, -(size+6)/2]
+  });
+}
+function makeRefIcon() {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='26' height='34'>
+    <path d='M13 1 C7,1 2,6 2,12 C2,20 13,33 13,33 C13,33 24,20 24,12 C24,6 19,1 13,1 Z'
+          fill='#fb923c' stroke='white' stroke-width='1.5'/>
+    <circle cx='13' cy='12' r='4' fill='white'/>
+  </svg>`;
+  return L.divIcon({ html: svg, className: "", iconSize: [26,34], iconAnchor: [13,33], popupAnchor: [0,-34] });
+}
+
+let gnssMarker   = L.marker([0,0], {icon: makeIcon("#22d3ee", 16)}).bindPopup("");
+let drMarker     = L.marker([0,0], {icon: makeIcon("#a78bfa", 14)}).bindPopup("");
+let spoofMarker  = L.marker([0,0], {icon: makeIcon("#f43f5e", 14)}).bindPopup("SIMULATED spoof position");
+let refMarker    = L.marker([0,0], {icon: makeRefIcon()}).bindPopup("Reference Point");
+let accCircle    = L.circle([0,0], {radius:0, color:"#22d3ee", fillColor:"#22d3ee", fillOpacity:0.07, weight:1.5});
+let trailGnssLayer = L.polyline([], {color:"#22d3ee", weight:2.5, opacity:0.8});
+let trailDrLayer   = L.polyline([], {color:"#a78bfa", weight:2.5, opacity:0.8, dashArray:"6 4"});
+
+trailGnssLayer.addTo(map);
+trailDrLayer.addTo(map);
+
+// Click map to set reference point
+map.on("click", e => {
+  if (placingRef) {
+    setRef(e.latlng.lat, e.latlng.lng);
+    placingRef = false;
+    map.getContainer().style.cursor = "";
+    addLog("Reference point placed at " + e.latlng.lat.toFixed(6) + ", " + e.latlng.lng.toFixed(6), "info");
+  }
+});
+
+// ── Haversine & geodesic helpers ─────────────────────────────────
+function haversine(lat1, lng1, lat2, lng2) {
+  const toR = d => d * Math.PI/180;
+  const dLat = toR(lat2-lat1), dLng = toR(lng2-lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toR(lat1))*Math.cos(toR(lat2))*Math.sin(dLng/2)**2;
+  return R_EARTH * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+function offsetLatLng(lat, lng, dNorthM, dEastM) {
+  const newLat = lat + (dNorthM / R_EARTH) * (180/Math.PI);
+  const newLng = lng + (dEastM / (R_EARTH * Math.cos(lat * Math.PI/180))) * (180/Math.PI);
+  return [newLat, newLng];
+}
+
+// ── TRUST Dead Reckoning Engine ───────────────────────────────────
+function drApplyStep() {
+  if (state.drLat === null) return;
+  const rad = state.heading * Math.PI/180;
+  const dNorth = STRIDE_M * Math.cos(rad);
+  const dEast  = STRIDE_M * Math.sin(rad);
+  const [newLat, newLng] = offsetLatLng(state.drLat, state.drLng, dNorth, dEast);
+  state.drLat = newLat;
+  state.drLng = newLng;
+  state.drCumulativeM += STRIDE_M;
+  state.stepDistM += STRIDE_M;
+}
+
+function drSeedFromGnss() {
+  if (state.gnssLat !== null) {
+    state.drLat = state.gnssLat;
+    state.drLng = state.gnssLng;
+  }
+}
+
+// ── Phone sensor data receiver (BroadcastChannel for same-origin) ─
+// The phone client posts JSON messages via BroadcastChannel "trust-sensors"
+// If phone is on same origin/network it can also POST to localStorage.
+// We poll localStorage for updates from trust_phone.html.
+function pollPhoneData() {
+  const raw = localStorage.getItem("trust_phone_data");
+  if (!raw) return;
+  try {
+    const d = JSON.parse(raw);
+    if (!d || d.ts === state._lastPhoneTs) return;
+    state._lastPhoneTs = d.ts;
+    handlePhoneUpdate(d);
+  } catch(e) {}
+}
+
+function handlePhoneUpdate(d) {
+  // GNSS
+  if (d.lat !== null && d.lat !== undefined) {
+    state.gnssLat = d.lat;
+    state.gnssLng = d.lng;
+    state.gnssAcc = d.acc;
+    state.gnssSpeed = d.speed;
+    state.gnssHeading = d.heading;
+    state.lastFixTime = Date.now();
+    state.hasGnssFix = true;
+    state.fixCount++;
+    el("statFixes").textContent = state.fixCount;
+
+    if (state.mode === "normal" || state.mode === "recovering") {
+      state.lastTrustedLat = d.lat;
+      state.lastTrustedLng = d.lng;
+      drSeedFromGnss();
+    }
+  }
+  // Heading
+  if (d.heading_dev !== null && d.heading_dev !== undefined) {
+    state.heading = d.heading_dev;
+  } else if (state.gnssHeading !== null) {
+    state.heading = state.gnssHeading;
+  }
+  // Steps
+  if (d.steps !== undefined) {
+    const newSteps = d.steps - (state._lastPhoneSteps || 0);
+    if (newSteps > 0 && (state.mode === "jammed" || state.mode === "spoofed")) {
+      for (let i = 0; i < newSteps; i++) drApplyStep();
+    }
+    state.stepCount = d.steps;
+    state._lastPhoneSteps = d.steps;
+    el("statSteps").textContent = state.stepCount;
+  }
+  // Accel mag
+  if (d.accel !== undefined) state.accelMag = d.accel;
+
+  // Record position log row (same columns as phone client CSV for Colab compatibility)
+  if (state.gnssLat !== null) {
+    state.positionLog.push([
+      Date.now(),
+      state.mode,
+      Math.round(state.confidence),
+      state.gnssLat?.toFixed(7) || "",
+      state.gnssLng?.toFixed(7) || "",
+      state.drLat?.toFixed(7) || "",
+      state.drLng?.toFixed(7) || "",
+      Math.round(state.gnssAcc || 0),
+      state.stepCount,
+      Math.round(state.drCumulativeM),
+      state.gnssSpeed !== null ? (state.gnssSpeed * 3.6).toFixed(1) : "",
+      Math.round(d.heading_dev || state.heading || 0)
+    ]);
+  }
+
+  updateUI();
+  updateMap();
+}
+
+// Direct input via BroadcastChannel (if same browser tab on same origin)
+let bc;
+try {
+  bc = new BroadcastChannel("trust-sensors");
+  bc.onmessage = e => handlePhoneUpdate(e.data);
+} catch(e) {}
+
+// ── Sensor event listeners (dashboard itself as phone fallback) ───
+let selfGpsWatcher = null;
+function startSelfGps() {
+  if (!navigator.geolocation) return;
+  selfGpsWatcher = navigator.geolocation.watchPosition(pos => {
+    handlePhoneUpdate({
+      lat: pos.coords.latitude,
+      lng: pos.coords.longitude,
+      acc: pos.coords.accuracy,
+      speed: pos.coords.speed,
+      heading: pos.coords.heading,
+      ts: Date.now(),
+      steps: state.stepCount,
+      accel: state.accelMag,
+      heading_dev: state.heading
+    });
+    el("connectBar").className = "connect-bar";
+    el("connectPulse").className = "pulse";
+    el("connectText").textContent = "Using dashboard GPS (this device)";
+  }, err => {
+    addLog("GPS error: " + err.message, "bad");
+  }, { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 });
+}
+
+window.addEventListener("deviceorientation", e => {
+  if (e.alpha !== null) {
+    state.heading = e.alpha;
+    el("valHead").textContent = Math.round(e.alpha) + "°";
+    el("dotHead").className = "sensor-dot ok";
+  }
+});
+window.addEventListener("devicemotion", e => {
+  const a = e.accelerationIncludingGravity;
+  if (!a || a.x === null) return;
+  const mag = Math.sqrt(a.x**2 + a.y**2 + a.z**2);
+  state.accelMag = mag;
+  el("valAccel").textContent = mag.toFixed(1) + " m/s²";
+  el("dotAccel").className = "sensor-dot ok";
+  const now = Date.now();
+  if (mag > STEP_THRESHOLD && (now - lastStepTime) > STEP_DEBOUNCE_MS) {
+    lastStepTime = now;
+    state.stepCount++;
+    el("statSteps").textContent = state.stepCount;
+    el("valStep").textContent = state.stepCount + " steps · " + (state.stepCount * STRIDE_M).toFixed(1) + " m";
+    el("dotStep").className = "sensor-dot ok";
+    if (state.mode === "jammed" || state.mode === "spoofed") {
+      drApplyStep();
+      updateMap();
+    }
+  }
+});
+
+// ── Confidence score engine ───────────────────────────────────────
+function computeConfidence() {
+  if (!state.hasGnssFix) { state.confidence = 0; return; }
+  const age = state.lastFixTime ? (Date.now() - state.lastFixTime)/1000 : 999;
+
+  if (state.mode === "normal") {
+    let c = 100;
+    if (age > 10)  c -= 15;
+    if (age > 30)  c -= 20;
+    if (state.gnssAcc > 30) c -= 15;
+    if (state.gnssAcc > 60) c -= 20;
+    state.confidence = Math.max(50, Math.min(100, c));
+
+  } else if (state.mode === "jammed") {
+    // Confidence decays with DR distance from last trusted fix
+    const driftM = (state.lastTrustedLat !== null)
+      ? haversine(state.lastTrustedLat, state.lastTrustedLng, state.drLat||state.lastTrustedLat, state.drLng||state.lastTrustedLng)
+      : 0;
+    state.confidence = Math.max(15, 80 - driftM * 0.4);
+
+  } else if (state.mode === "spoofed") {
+    // Confidence drops based on mismatch between GNSS and DR
+    const [sLat, sLng] = spoofedCoords();
+    const mismatch = (state.drLat !== null)
+      ? haversine(sLat, sLng, state.drLat, state.drLng) : 0;
+    state.confidence = Math.max(10, 70 - mismatch * 0.3);
+
+  } else if (state.mode === "recovering") {
+    state.confidence = Math.min(100, state.confidence + 3);
+    if (state.confidence >= RECOVERY_CONF_THRESHOLD) {
+      state.mode = "normal";
+      addLog("TRUST: GNSS re-validated — returning to NORMAL mode.", "info");
+    }
+  }
+}
+
+function spoofedCoords() {
+  if (!state.gnssLat) return [0,0];
+  const n = parseFloat(el("spoofNorth").value);
+  const e = parseFloat(el("spoofEast").value);
+  return offsetLatLng(state.gnssLat, state.gnssLng, n, e);
+}
+
+// ── UI update ────────────────────────────────────────────────────
+function updateUI() {
+  computeConfidence();
+
+  const c = state.confidence;
+  const confPct = c.toFixed(0) + "%";
+  el("confVal").textContent = confPct;
+  const arcLen = 132 * (c / 100);
+  el("confArc").setAttribute("stroke-dashoffset", 132 - arcLen);
+  el("confArc").setAttribute("stroke", c > 80 ? "var(--gnss)" : c > 50 ? "var(--warn)" : "var(--danger)");
+
+  // Mode banner
+  const banner = el("modeBanner");
+  banner.className = "mode-banner " + state.mode;
+  let modeTxt = "GNSS TRUSTED", modeSub = "";
+  if (state.mode === "jammed") {
+    modeTxt = "GNSS JAMMED";
+    modeSub = "TRUST dead-reckoning active";
+  } else if (state.mode === "spoofed") {
+    const [sLat, sLng] = spoofedCoords();
+    const mismatch = state.drLat ? haversine(sLat, sLng, state.drLat, state.drLng) : 0;
+    modeTxt = "⚠ SPOOFING DETECTED";
+    modeSub = "Mismatch: " + Math.round(mismatch) + " m from TRUST estimate";
+  } else if (state.mode === "recovering") {
+    modeTxt = "RECOVERING";
+    modeSub = "Re-validating GNSS fix…";
+  } else {
+    modeSub = state.hasGnssFix ? "Position trusted · accuracy ±" + Math.round(state.gnssAcc||0) + " m" : "Waiting for fix…";
+  }
+  el("modeName").textContent = modeTxt;
+  el("modeSub").textContent = modeSub;
+
+  // Sensor dots & values
+  const age = state.lastFixTime ? (Date.now() - state.lastFixTime)/1000 : null;
+  if (state.hasGnssFix) {
+    el("dotGnss").className = age > 30 ? "sensor-dot warn" : "sensor-dot ok";
+    el("valGnss").textContent = "±" + Math.round(state.gnssAcc||0) + " m";
+    el("gnssLat").textContent = state.gnssLat.toFixed(7);
+    el("gnssLng").textContent = state.gnssLng.toFixed(7);
+    el("gnssAcc").textContent = "±" + Math.round(state.gnssAcc||0) + " m";
+    el("gnssAge").textContent = age !== null ? Math.round(age) + " s ago" : "—";
+    if (state.gnssSpeed !== null) {
+      el("valSpeed").textContent = (state.gnssSpeed * 3.6).toFixed(1) + " km/h";
+      el("dotSpeed").className = "sensor-dot ok";
+    }
+  }
+  if (state.drLat !== null) {
+    el("drLat").textContent = state.drLat.toFixed(7);
+    el("drLng").textContent = state.drLng.toFixed(7);
+    const drift = (state.lastTrustedLat !== null)
+      ? haversine(state.lastTrustedLat, state.lastTrustedLng, state.drLat, state.drLng)
+      : 0;
+    el("drDrift").textContent = Math.round(drift) + " m drift";
+    el("drHead").textContent = Math.round(state.heading) + "°";
+    el("statDist").textContent = Math.round(state.drCumulativeM) + " m";
+  }
+  if (state.heading !== null) {
+    el("valHead").textContent = Math.round(state.heading) + "°";
+    el("dotHead").className = "sensor-dot ok";
+  }
+  el("valStep").textContent = state.stepCount + " steps · " + (state.stepCount * STRIDE_M).toFixed(1) + " m";
+
+  // Reference distances
+  if (state.refLat !== null) {
+    if (state.gnssLat !== null) {
+      el("distGnss").textContent = Math.round(haversine(state.refLat, state.refLng, state.gnssLat, state.gnssLng)) + " m";
+    }
+    if (state.drLat !== null) {
+      el("distTrust").textContent = Math.round(haversine(state.refLat, state.refLng, state.drLat, state.drLng)) + " m";
+    }
+  }
+
+  // Header
+  el("hdrStatus").textContent = modeTxt + " · " + confPct;
+  el("hdrPulse").className = state.mode === "jammed" ? "pulse warn" : state.mode === "spoofed" ? "pulse off" : "pulse";
+  el("statEvents").textContent = state.eventCount;
+}
+
+// ── Map update ────────────────────────────────────────────────────
+function updateMap() {
+  if (!state.hasGnssFix) return;
+
+  const gll = [state.gnssLat, state.gnssLng];
+
+  // GNSS marker & accuracy circle
+  if (!map.hasLayer(gnssMarker)) gnssMarker.addTo(map);
+  gnssMarker.setLatLng(gll);
+  gnssMarker.setPopupContent(
+    `<b>GNSS Position</b><br>
+     Lat: ${state.gnssLat.toFixed(7)}<br>
+     Lng: ${state.gnssLng.toFixed(7)}<br>
+     Accuracy: ±${Math.round(state.gnssAcc||0)} m<br>
+     Mode: ${state.mode.toUpperCase()}`
+  );
+
+  if (!map.hasLayer(accCircle)) accCircle.addTo(map);
+  accCircle.setLatLng(gll);
+  accCircle.setRadius(state.gnssAcc || 10);
+
+  // TRUST DR marker
+  if (state.drLat !== null) {
+    if (!map.hasLayer(drMarker)) drMarker.addTo(map);
+    drMarker.setLatLng([state.drLat, state.drLng]);
+    drMarker.setPopupContent(
+      `<b>TRUST Estimate</b><br>
+       Lat: ${state.drLat.toFixed(7)}<br>
+       Lng: ${state.drLng.toFixed(7)}<br>
+       Heading: ${Math.round(state.heading)}°<br>
+       Drift: ${Math.round(haversine(state.lastTrustedLat||state.drLat,state.lastTrustedLng||state.drLng,state.drLat,state.drLng))} m`
+    );
+  }
+
+  // Spoof marker
+  if (state.mode === "spoofed") {
+    const [sLat, sLng] = spoofedCoords();
+    if (!map.hasLayer(spoofMarker)) spoofMarker.addTo(map);
+    spoofMarker.setLatLng([sLat, sLng]);
+    spoofMarker.setPopupContent(`<b>⚠ SIMULATED SPOOF POSITION</b><br>Offset: N${el("spoofNorth").value}m E${el("spoofEast").value}m<br>True position preserved.`);
+  } else {
+    if (map.hasLayer(spoofMarker)) spoofMarker.remove();
+  }
+
+  // Trails
+  if (state.showTrail) {
+    if (state.mode === "normal" || state.mode === "recovering") {
+      trailGnss.push(gll);
+      trailGnssLayer.setLatLngs(trailGnss);
+    }
+    if (state.drLat !== null && (state.mode === "jammed" || state.mode === "spoofed")) {
+      trailDr.push([state.drLat, state.drLng]);
+      trailDrLayer.setLatLngs(trailDr);
+    }
+  }
+
+  // Auto-centre if no user interaction for a while
+  if (!state._userPanned) {
+    mapPanTo(state.gnssLat, state.gnssLng);
+  }
+}
+
+map.on("dragstart", () => { state._userPanned = true; });
+setTimeout(() => { state._userPanned = false; }, 30000);
+
+// ── Simulation controls ────────────────────────────────────────
+// Write simulation command to localStorage so the phone tab picks it up
+function writeSimCmd(action) {
+  try { localStorage.setItem("trust_sim_cmd", JSON.stringify({ action, ts: Date.now() })); } catch(e) {}
+}
+
+// Poll for phone-side mode changes (e.g. phone triggered jam itself)
+function pollPhoneMode() {
+  try {
+    const raw = localStorage.getItem("trust_phone_mode");
+    if (!raw) return;
+    const { mode, ts } = JSON.parse(raw);
+    if (ts === state._lastPhoneModeTs) return;
+    state._lastPhoneModeTs = ts;
+    if (mode !== state.mode && mode) {
+      if (state.mode !== mode) {
+        state.mode = mode;
+        addLog("Phone changed mode to: " + mode.toUpperCase(), "warn");
+        el("btnRestore").disabled = (mode === "normal");
+        el("spoofControls").style.display = (mode === "spoofed") ? "block" : "none";
+        updateUI();
+      }
+    }
+  } catch(e) {}
+}
+
+function triggerJam() {
+  if (state.mode === "jammed") return;
+  state.mode = "jammed";
+  state.lastTrustedLat = state.gnssLat;
+  state.lastTrustedLng = state.gnssLng;
+  drSeedFromGnss();
+  el("btnRestore").disabled = false;
+  el("spoofControls").style.display = "none";
+  writeSimCmd("jam");
+  addLog("GNSS JAMMING simulated — TRUST dead-reckoning activated. Last trusted fix preserved.", "bad");
+  el("connectBar").className = "connect-bar jam";
+  el("connectPulse").className = "pulse warn";
+  el("connectText").textContent = "SIMULATED JAMMING ACTIVE — no real RF interference";
+  updateUI();
+}
+
+function triggerSpoof() {
+  if (state.mode === "spoofed") return;
+  state.mode = "spoofed";
+  state.lastTrustedLat = state.gnssLat;
+  state.lastTrustedLng = state.gnssLng;
+  drSeedFromGnss();
+  el("btnRestore").disabled = false;
+  el("spoofControls").style.display = "block";
+  writeSimCmd("spoof");
+  const [sLat, sLng] = spoofedCoords();
+  const mismatch = state.drLat ? haversine(sLat, sLng, state.drLat, state.drLng) : 0;
+  addLog(`GNSS SPOOFING simulated — injected offset N${el("spoofNorth").value}m E${el("spoofEast").value}m. TRUST detects ${Math.round(mismatch)}m mismatch.`, "bad");
+  el("connectBar").className = "connect-bar spoof";
+  el("connectPulse").className = "pulse off";
+  el("connectText").textContent = "SIMULATED SPOOFING — injected position ≠ TRUST estimate";
+  updateUI(); updateMap();
+}
+
+function restoreGnss() {
+  if (state.mode === "normal") return;
+  state.mode = "recovering";
+  el("spoofControls").style.display = "none";
+  writeSimCmd("restore");
+  addLog("GNSS signal restored — TRUST re-validating fix before trusting…", "trust");
+  el("connectBar").className = "connect-bar";
+  el("connectPulse").className = "pulse";
+  el("connectText").textContent = "Recovering — re-validating GNSS";
+  updateUI();
+}
+
+function confirmReset() {
+  if (!confirm("Reset the demo? This clears the position trail, event log and step counters.")) return;
+  trailGnss = []; trailDr = [];
+  trailGnssLayer.setLatLngs([]);
+  trailDrLayer.setLatLngs([]);
+  state.mode = "normal";
+  state.stepCount = 0; state.drCumulativeM = 0; state.fixCount = 0;
+  state.logRows = []; state.positionLog = []; state.eventCount = 0;
+  el("logBox").innerHTML = "";
+  el("spoofControls").style.display = "none";
+  el("btnRestore").disabled = true;
+  el("statFixes").textContent = "0"; el("statSteps").textContent = "0";
+  el("statDist").textContent = "0 m"; el("statEvents").textContent = "0";
+  writeSimCmd("reset");
+  addLog("Demo reset.", "info");
+}
+
+function updateSpoofLabel() {
+  el("lblSpoofNorth").textContent = el("spoofNorth").value + " m";
+  el("lblSpoofEast").textContent  = el("spoofEast").value  + " m";
+  if (state.mode === "spoofed") { updateUI(); updateMap(); }
+}
+
+// ── Reference point ───────────────────────────────────────────────
+function setRef(lat, lng) {
+  state.refLat = lat; state.refLng = lng;
+  el("refLat").value = lat.toFixed(6);
+  el("refLng").value = lng.toFixed(6);
+  if (!map.hasLayer(refMarker)) refMarker.addTo(map);
+  refMarker.setLatLng([lat, lng]);
+  refMarker.setPopupContent(`<b>Reference Point</b><br>${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+}
+function setRefPoint() {
+  const lat = parseFloat(el("refLat").value);
+  const lng = parseFloat(el("refLng").value);
+  if (isNaN(lat) || isNaN(lng)) { alert("Enter valid lat/lng."); return; }
+  setRef(lat, lng);
+  addLog("Reference point set: " + lat.toFixed(6) + ", " + lng.toFixed(6), "info");
+}
+function setRefFromPhone() {
+  if (!state.gnssLat) { addLog("No GPS fix yet — cannot set reference.", "warn"); return; }
+  setRef(state.gnssLat, state.gnssLng);
+  addLog("Reference point set to current phone position.", "info");
+}
+function centerRef() {
+  if (state.refLat) mapSetView(state.refLat, state.refLng, 17);
+}
+function centerPhone() {
+  if (state.gnssLat) mapSetView(state.gnssLat, state.gnssLng, 17);
+}
+function fitAll() {
+  const pts = [];
+  if (state.gnssLat) pts.push([state.gnssLat, state.gnssLng]);
+  if (state.drLat)   pts.push([state.drLat, state.drLng]);
+  if (state.refLat)  pts.push([state.refLat, state.refLng]);
+  if (pts.length > 0) mapFitBounds(pts);
+}
+function toggleTrail() {
+  state.showTrail = !state.showTrail;
+  el("btnTrail").textContent = state.showTrail ? "Hide trail" : "Show trail";
+  if (!state.showTrail) {
+    trailGnssLayer.setLatLngs([]);
+    trailDrLayer.setLatLngs([]);
+  }
+}
+
+// ── Logging ───────────────────────────────────────────────────────
+function addLog(msg, level) {
+  const now = new Date();
+  const time = now.toLocaleTimeString("en-GB", { hour12: false });
+  const entry = document.createElement("div");
+  entry.className = "log-entry " + (level || "info");
+  entry.innerHTML = `<span class="log-time">${time}</span>${msg}`;
+  const lb = el("logBox");
+  lb.prepend(entry);
+  while (lb.children.length > 60) lb.removeChild(lb.lastChild);
+  state.eventCount++;
+  state.logRows.push([
+    now.getTime(), time, state.mode, level||"info",
+    msg.replace(/,/g, ";"),
+    state.gnssLat?.toFixed(7) || "",
+    state.gnssLng?.toFixed(7) || "",
+    state.drLat?.toFixed(7) || "",
+    state.drLng?.toFixed(7) || "",
+    Math.round(state.confidence),
+    Math.round(state.gnssAcc||0),
+    state.stepCount,
+    Math.round(state.drCumulativeM)
+  ]);
+  el("statEvents").textContent = state.eventCount;
+}
+
+function downloadCSV() {
+  const hdr = "timestamp_ms,time,mode,level,event,gnss_lat,gnss_lng,dr_lat,dr_lng,confidence,acc_m,steps,dr_dist_m\n";
+  const body = state.logRows.map(r => r.join(",")).join("\n");
+  const blob = new Blob([hdr + body], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "trust_dashboard_events_" + Date.now() + ".csv";
+  a.click();
+}
+
+// Export full position log — same columns as phone client for Colab compatibility
+function downloadPositionCSV() {
+  const hdr = "timestamp_ms,mode,confidence,real_lat,real_lng,dr_lat,dr_lng,acc_m,steps,dr_dist_m,speed_kph,heading_deg\n";
+  const body = state.positionLog.map(r => r.join(",")).join("\n");
+  const blob = new Blob([hdr + body], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "trust_live_demo_log.csv";
+  a.click();
+}
+function clearLog() {
+  if (!confirm("Clear event log?")) return;
+  el("logBox").innerHTML = "";
+  state.logRows = [];
+  state.eventCount = 0;
+  el("statEvents").textContent = "0";
+}
+
+// ── Utilities ─────────────────────────────────────────────────────
+const el = id => document.getElementById(id);
+
+function updateClock() {
+  el("hdrClock").textContent = new Date().toLocaleTimeString("en-GB", { hour12: false });
+}
+
+// ── Startup ───────────────────────────────────────────────────────
+// Try to start GPS on this device (dashboard itself as fallback)
+if (navigator.geolocation) {
+  startSelfGps();
+} else {
+  addLog("Geolocation API not available on this browser.", "warn");
+}
+
+// Request motion permission on iOS
+if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+  document.body.insertAdjacentHTML("afterbegin",
+    `<div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:rgba(251,191,36,0.95);color:#000;padding:12px 16px;font-size:12px;text-align:center;">
+      iOS detected — <button onclick="DeviceMotionEvent.requestPermission().then(s=>{if(s==='granted'){this.parentElement.remove();}});DeviceOrientationEvent.requestPermission().catch(()=>{});" style="font-weight:700;text-decoration:underline;background:none;border:none;cursor:pointer;font-size:12px;">Tap here to enable motion sensors</button>
+    </div>`
+  );
+}
+
+// Poll localStorage for phone data and phone-side mode changes every 500ms
+setInterval(pollPhoneData, 500);
+setInterval(pollPhoneMode, 600);
+setInterval(updateClock, 1000);
+setInterval(() => { if (state.hasGnssFix) { updateUI(); } }, 1000);
+
+// Set default reference point: KNUST main campus
+setRef(6.6745, -1.5716);
+
+// HTTPS check — geolocation requires a secure context on most browsers
+if (!window.isSecureContext) {
+  addLog("⚠ Not running over HTTPS. GPS may be blocked by the browser. Host on GitHub Pages for full functionality.", "warn");
+}
+
+addLog("TRUST dashboard ready. Open trust_phone.html on your phone to send real sensor data.", "info");
+addLog("Default reference point: KNUST Main Campus (6.6745°N, 1.5716°W). Update as needed.", "info");
+</script>
+</body>
+</html>
