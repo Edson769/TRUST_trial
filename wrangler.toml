@@ -1,0 +1,12 @@
+name = "trust-relay"
+main = "trust_relay_worker.js"
+compatibility_date = "2024-01-01"
+
+# Durable Objects — holds the connected WebSocket clients in memory
+[[durable_objects.bindings]]
+name = "RELAY"
+class_name = "TrustRelay"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["TrustRelay"]
