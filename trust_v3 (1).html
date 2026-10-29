@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>TRUST Prototype</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230b1020'/><path d='M16 5l9 4v7c0 5-4 9-9 11-5-2-9-6-9-11V9z' fill='none' stroke='%23a78bfa' stroke-width='2.4'/><circle cx='16' cy='15' r='3' fill='%2322d3ee'/></svg>">
+<style>
+:root{
+  --bg:#0b1020;--panel:#121a2e;--panel2:#17213a;--line:#24314f;--text:#e6ebf5;--muted:#8d9ab6;
+  --gnss:#22d3ee;--trust:#a78bfa;--ok:#34d399;--warn:#fbbf24;--bad:#f43f5e;--rec:#60a5fa;--truth:#e5e7eb;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;--mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:1.45;font-size:15px;min-height:100vh}
+button{font-family:inherit}
+a{color:var(--gnss)}
+header{position:sticky;top:0;z-index:20;background:rgba(11,16,32,.96);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:10px 16px 0;padding-top:max(10px,env(safe-area-inset-top))}
+.brand{display:flex;align-items:center;gap:10px;max-width:1180px;margin:0 auto}
+.brand svg{flex-shrink:0}
+.brand h1{font-size:20px;letter-spacing:.5px;font-weight:800}
+.brand .tag{font-size:11.5px;color:var(--muted);line-height:1.25}
+.brand .who{margin-left:auto;font-size:11px;color:var(--muted);text-align:right;line-height:1.3}
+nav.tabs{display:flex;gap:4px;max-width:1180px;margin:10px auto 0;overflow-x:auto}
+nav.tabs button{flex:1;min-width:max-content;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);font-size:14px;font-weight:700;padding:9px 10px 10px;cursor:pointer}
+nav.tabs button.on{color:var(--text);border-bottom-color:var(--trust)}
+main{max-width:1180px;margin:0 auto;padding:16px}
+section.tab{display:none}
+section.tab.on{display:block}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.card h2{font-size:17px;margin-bottom:8px}
+.card h3{font-size:14px;margin:12px 0 6px;color:var(--text)}
+.muted{color:var(--muted)}
+.small{font-size:12.5px}
+.lead{font-size:16px}
+.kicker{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--trust);margin-bottom:6px}
+.grid2{display:grid;grid-template-columns:1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width:760px){.grid2{grid-template-columns:1fr 1fr}.grid3{grid-template-columns:1fr 1fr 1fr}}
+ul.clean{list-style:none}
+ul.clean li{padding:6px 0;border-bottom:1px solid var(--line)}
+ul.clean li:last-child{border-bottom:none}
+.pill{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.pass{color:var(--ok)}.fail{color:var(--bad)}.pend{color:var(--muted)}.partial{color:var(--warn)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:8px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+.tablewrap{overflow-x:auto;margin:0 -4px}
+.yes{color:var(--ok);font-weight:800}.no{color:var(--bad);font-weight:800}.mid{color:var(--warn);font-weight:800}
+
+/* concept flow */
+.flow{display:grid;grid-template-columns:1fr;gap:10px;align-items:stretch}
+@media(min-width:900px){.flow{grid-template-columns:1.1fr auto 1.3fr auto 1.3fr auto 1fr}}
+.fbox{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px}
+.fbox b{display:block;font-size:13.5px;margin-bottom:6px}
+.fbox .chip{display:block;font-size:12.5px;padding:5px 8px;border-radius:8px;background:rgba(255,255,255,.04);margin-top:5px}
+.farrow{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:22px}
+@media(max-width:899px){.farrow{transform:rotate(90deg);height:18px}}
+.states{display:grid;grid-template-columns:1fr;gap:8px}
+@media(min-width:760px){.states{grid-template-columns:repeat(4,1fr)}}
+.st{border-radius:12px;padding:12px;border:1px solid}
+.st b{display:block;font-size:14px;letter-spacing:.04em}
+.st.n{border-color:var(--ok);background:rgba(52,211,153,.08)}.st.n b{color:var(--ok)}
+.st.d{border-color:var(--warn);background:rgba(251,191,36,.08)}.st.d b{color:var(--warn)}
+.st.a{border-color:var(--bad);background:rgba(244,63,94,.08)}.st.a b{color:var(--bad)}
+.st.r{border-color:var(--rec);background:rgba(96,165,250,.08)}.st.r b{color:var(--rec)}
+.req{display:grid;grid-template-columns:28px 1fr auto;gap:8px;padding:10px 0;border-bottom:1px solid var(--line);align-items:start}
+.req:last-child{border-bottom:none}
+.req .num{font-family:var(--mono);color:var(--muted);font-weight:700}
+.req .t{font-weight:650;font-size:14px}
+.req .m{font-size:12.5px;color:var(--muted);margin-top:2px}
+
+/* demo */
+.modebar{display:flex;gap:6px;flex-wrap:nowrap;margin-bottom:8px;justify-content:space-between}
+.modebar .seg{flex-wrap:nowrap}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px;flex-wrap:wrap}
+.seg button{background:none;border:none;color:var(--muted);font-weight:700;font-size:13px;padding:8px 10px;border-radius:7px;cursor:pointer}
+.seg button.on{background:var(--trust);color:#160f2e}
+.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);font-weight:750;font-size:14px;padding:11px 12px;border-radius:10px;cursor:pointer}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn.primary{background:var(--gnss);border-color:var(--gnss);color:#03222a}
+.btn.jam{border-color:var(--warn);color:var(--warn)}
+.btn.spoof{border-color:var(--bad);color:var(--bad)}
+.btn.rest{border-color:var(--rec);color:var(--rec)}
+.btn.sm{font-size:12px;padding:7px 9px}
+.demo-grid{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:980px){.demo-grid{grid-template-columns:1.55fr 1fr}}
+.banner{display:flex;align-items:center;gap:12px;border-radius:14px;padding:12px 14px;border:1px solid var(--line);background:var(--panel);margin-bottom:10px;transition:background .25s,border-color .25s}
+.banner .s{font-size:22px;font-weight:850;letter-spacing:.05em}
+.banner .sub{font-size:12.5px;color:var(--muted)}
+.banner.NORMAL{border-color:var(--ok);background:rgba(52,211,153,.09)}.banner.NORMAL .s{color:var(--ok)}
+.banner.DEGRADED{border-color:var(--warn);background:rgba(251,191,36,.10)}.banner.DEGRADED .s{color:var(--warn)}
+.banner.ALERT{border-color:var(--bad);background:rgba(244,63,94,.12)}.banner.ALERT .s{color:var(--bad)}
+.banner.RECOVERING{border-color:var(--rec);background:rgba(96,165,250,.10)}.banner.RECOVERING .s{color:var(--rec)}
+.banner.ALERT{animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 4px rgba(244,63,94,.18)}}
+.gauge{margin-left:auto;position:relative;width:74px;height:74px;flex-shrink:0}
+.gauge svg{transform:rotate(-90deg)}
+.gauge .v{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--mono);font-weight:800;font-size:18px}
+.gauge .v span{font-size:9px;color:var(--muted);font-family:var(--sans);font-weight:700;letter-spacing:.08em}
+.mapwrap{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#0e1528;height:min(52vh,520px);min-height:280px}
+#map{width:100%;height:100%;display:block;touch-action:none}
+.maptools{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:6px}
+.maptools button{width:36px;height:36px;border-radius:9px;border:1px solid var(--line);background:rgba(18,26,46,.92);color:var(--text);font-size:18px;font-weight:800;cursor:pointer}
+.maptools button.on{border-color:var(--trust);color:var(--trust)}
+.legend{position:absolute;left:8px;top:8px;background:rgba(11,16,32,.86);border:1px solid var(--line);border-radius:9px;padding:6px 8px;font-size:11px;line-height:1.6}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.attr{position:absolute;right:6px;bottom:4px;font-size:10px;color:#cbd5e1;background:rgba(11,16,32,.7);padding:1px 5px;border-radius:4px}
+.attack{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(min-width:600px){.metrics{grid-template-columns:1fr 1fr 1fr}}
+.met{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 10px}
+.met .l{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+.met .v{font-family:var(--mono);font-size:18px;font-weight:800;margin-top:2px}
+.met .t{font-size:11px;color:var(--muted)}
+.srow{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.srow:last-child{border-bottom:none}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.dot.ok{background:var(--ok)}.dot.warn{background:var(--warn)}.dot.bad{background:var(--bad)}.dot.off{background:#3b4766}
+.srow .n{flex:1;font-weight:600}
+.srow .v{font-family:var(--mono);font-size:12px;color:#b8c3dc;text-align:right}
+.log{font-family:var(--mono);font-size:11.5px;max-height:220px;overflow-y:auto;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px}
+.le{padding:4px 7px;border-left:3px solid var(--line);margin-bottom:3px;border-radius:4px;background:rgba(255,255,255,.02)}
+.le .tm{color:var(--muted);margin-right:6px}
+.le.NORMAL{border-color:var(--ok)}.le.DEGRADED{border-color:var(--warn)}.le.ALERT{border-color:var(--bad)}.le.RECOVERING{border-color:var(--rec)}.le.ATTACK{border-color:#f97316}.le.INFO{border-color:var(--gnss)}
+.pt{display:flex;align-items:center;gap:12px;border-radius:12px;padding:10px 12px;border:1px solid var(--line);background:var(--panel2);margin-bottom:10px}
+.pt .ic{font-size:22px}
+.pt .h{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:800}
+.pt .d{font-size:15px;font-weight:800}
+.pt .w{font-size:12px;color:var(--muted)}
+.pt .j{margin-left:auto;text-align:right;font-family:var(--mono);font-size:12px;color:#b8c3dc;white-space:nowrap}
+.pt.ok{border-color:var(--ok)}.pt.ok .d{color:var(--ok)}
+.pt.flag{border-color:var(--warn)}.pt.flag .d{color:var(--warn)}
+.pt.held{border-color:var(--bad);background:rgba(244,63,94,.08)}.pt.held .d{color:var(--bad)}
+.note{font-size:12.5px;color:var(--muted);background:rgba(167,139,250,.07);border:1px solid rgba(167,139,250,.25);border-radius:10px;padding:9px 11px;margin-top:10px}
+.warnbox{font-size:12.5px;color:var(--warn);background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.35);border-radius:10px;padding:9px 11px;margin-bottom:10px;display:none}
+.warnbox.show{display:block}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.vp{font-size:18px;line-height:1.5;font-weight:600}
+.vp em{color:var(--trust);font-style:normal}
+.canvasvp{display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width:760px){.canvasvp{grid-template-columns:1fr 1fr}}
+.vbox{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px}
+.vbox b{display:block;font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
+.vbox ul{padding-left:18px;font-size:13.5px}
+.vbox li{margin:4px 0}
+.quote{font-size:17px;font-style:italic;border-left:3px solid var(--trust);padding:4px 0 4px 12px}
+footer{max-width:1180px;margin:0 auto;padding:6px 16px 30px;color:var(--muted);font-size:11.5px;text-align:center;padding-bottom:max(30px,env(safe-area-inset-bottom))}
+input[type=file]{display:none}
+.short{display:none}
+@media(max-width:620px){.seg button{padding:7px 8px;font-size:12.5px}.brand .who{display:none}.brand .tag{font-size:10.5px}.brand h1{font-size:18px}.long{display:none}.short{display:inline}nav.tabs button{font-size:13.5px;padding:8px 6px 9px}main{padding:12px}.mapwrap{height:46vh}.banner .s{font-size:19px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#17213a"/><path d="M16 5l9 4v7c0 5-4 9-9 11-5-2-9-6-9-11V9z" fill="none" stroke="#a78bfa" stroke-width="2.2"/><circle cx="16" cy="15" r="3" fill="#22d3ee"/></svg>
+    <div><h1>TRUST</h1><div class="tag">Transport Resilient Unified Sensor Technology</div></div>
+    <div class="who">KNUST · TRECK<br>Client: FAI “ROSDORNII”</div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button class="on" data-tab="concept" role="tab">1 · <span class="long">Concept &amp; requirements</span><span class="short">Concept</span></button>
+    <button data-tab="demo" role="tab">2 · <span class="long">Live prototype</span><span class="short">Prototype</span></button>
+    <button data-tab="value" role="tab">3 · <span class="long">Value proposition</span><span class="short">Value</span></button>
+  </nav>
+</header>
+
+<main>
+<!-- ═════════════ TAB 1: CONCEPT ═════════════ -->
+<section class="tab on" id="tab-concept">
+  <div class="card">
+    <div class="kicker">Prototype concept</div>
+    <p class="lead"><b>TRUST is a software layer for vehicles and ITS units.</b> It fuses GNSS with sensors the vehicle already has — wheel-speed odometry and the gyroscope — plus the digital road map. It <b>checks every GNSS fix before trusting it</b>, keeps positioning when GNSS is lost or lies, and <b>tells the operator the moment it can’t be sure</b> through a live confidence score.</p>
+    <p class="muted small" style="margin-top:8px">Problem it answers: positioning goes “blind”, with no reliable feedback, when the GNSS signal is lost (blocked or jammed) or faked (spoofed).</p>
+  </div>
+
+  <div class="card">
+    <h2>How it works</h2>
+    <div class="flow">
+      <div class="fbox"><b>1 · Inputs (already on the vehicle)</b>
+        <span class="chip">📡 GNSS receiver</span><span class="chip">⚙️ Wheel-speed sensors → distance</span><span class="chip">🧭 Gyroscope (IMU) → direction</span><span class="chip">🗺️ Digital road map</span></div>
+      <div class="farrow">→</div>
+      <div class="fbox"><b>2 · Fusion engine (10 Hz)</b>
+        <span class="chip">Dead reckoning: new position = old + speed × time, along the gyro heading</span>
+        <span class="chip">Map-matching keeps the estimate on real roads and stops drift growing</span>
+        <span class="chip">Trusted GNSS fixes correct the estimate</span></div>
+      <div class="farrow">→</div>
+      <div class="fbox"><b>3 · Three checks on every GNSS fix</b>
+        <span class="chip"><b style="display:inline">A</b> Is there a signal? → catches loss &amp; jamming</span>
+        <span class="chip"><b style="display:inline">B</b> Does it move like the vehicle? GNSS velocity vs wheels + gyro → catches spoofing</span>
+        <span class="chip"><b style="display:inline">C</b> Is it near our estimate and on a real road? → catches jumps</span></div>
+      <div class="farrow">→</div>
+      <div class="fbox"><b>4 · Operator console</b>
+        <span class="chip">State banner</span><span class="chip">🚦 PT priority: sent / flagged / held</span><span class="chip">Confidence 0–100%</span><span class="chip">Alert within 1 s</span><span class="chip">Timestamped log</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Four states the operator sees</h2>
+    <div class="states">
+      <div class="st n"><b>NORMAL</b><span class="small">GNSS passes all checks and is trusted. Confidence ≈100%. PT priority: <b>sent</b>.</span></div>
+      <div class="st d"><b>DEGRADED</b><span class="small">Signal lost (tunnel, jamming). Running on wheels + gyro + map. Confidence falls as drift grows. PT priority: <b>sent, flagged</b> (held below 60%).</span></div>
+      <div class="st a"><b>ALERT</b><span class="small">GNSS fails checks → spoofing suspected. GNSS is ignored; backup takes over. PT priority: <b>held</b>, dispatcher told.</span></div>
+      <div class="st r"><b>RECOVERING</b><span class="small">GNSS is back and consistent. Trusted again after 3 good fixes in a row. PT priority: <b>held until then</b>.</span></div>
+    </div>
+    <p class="muted small" style="margin-top:10px">Confidence never drops below 40% while the vehicle’s own sensors work — they still carry real information.</p>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Functional requirements <span class="muted small">(what it must do)</span></h2>
+      <ul class="clean small">
+        <li><b>F1</b> Estimate position continuously from in-vehicle sensors and GNSS.</li>
+        <li><b>F2</b> Detect GNSS signal loss (blockage or jamming).</li>
+        <li><b>F3</b> Detect GNSS spoofing, treated separately from jamming.</li>
+        <li><b>F4</b> Keep positioning without GNSS (dead reckoning + map-matching).</li>
+        <li><b>F5</b> Tell the operator: state, confidence and reason — never fail silently.</li>
+        <li><b>F6</b> Re-validate GNSS before trusting it again.</li>
+        <li><b>F7</b> Log every state change with a timestamp for audit.</li>
+      </ul>
+      <p class="note">Each one is visible in tab 2: F1 map trail · F2 Jam &amp; tunnel · F3 Spoof · F4 backup error · F5 banner &amp; gauge · F6 Recovering · F7 event log &amp; CSV.</p>
+    </div>
+    <div class="card">
+      <h2>Technical requirements <span class="muted small">(measured live)</span></h2>
+      <div id="reqList"></div>
+      <div class="row" style="margin-top:10px"><button class="btn sm" onclick="gotoTest()">Run the 60-scenario test →</button></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>What is real, what is simulated</h2>
+      <ul class="clean small">
+        <li><span class="yes">Real</span> The fusion engine, the three checks, the state machine, the confidence score and every measurement on screen.</li>
+        <li><span class="yes">Real</span> Phone mode uses the phone’s own GPS, compass and accelerometer.</li>
+        <li><span class="mid">Simulated</span> Attacks: no radio signal is transmitted. Jamming makes the receiver report “no fix”; spoofing injects false positions.</li>
+        <li><span class="mid">Simulated</span> Simulated drive sensor errors: odometry ±0.4%, gyro bias ≤0.03°/s, GNSS noise ≈2 m.</li>
+        <li><span class="mid">Simplified</span> A production system would use a Kalman filter; this prototype uses a simplified complementary filter.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Readiness &amp; next steps</h2>
+      <p class="small"><b>TRL 3–4:</b> proof of concept with real phone sensors and measured results — not yet integrated in a vehicle.</p>
+      <ul class="clean small" style="margin-top:6px">
+        <li>1 · Replace the simplified filter with an Extended Kalman Filter.</li>
+        <li>2 · Feed real wheel-speed and gyro data from a bus (CAN bus).</li>
+        <li>3 · Use ROSDORNII’s digital road network for map-matching.</li>
+        <li>4 · Hardware-in-the-loop tests with recorded jamming/spoofing.</li>
+        <li>5 · Write the nine numbers into a ROSDORNII standard.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ TAB 2: DEMO ═════════════ -->
+<section class="tab" id="tab-demo">
+  <div class="modebar">
+    <div class="seg" id="modeSeg">
+      <button class="on" data-mode="sim">🚌 Simulated</button>
+      <button data-mode="live">📱 Phone</button>
+      <button data-mode="replay">⏯ Replay</button>
+    </div>
+    <div class="seg" id="speedSeg">
+      <button class="on" data-speed="1">1×</button>
+      <button data-speed="4">4×</button>
+      <button data-speed="10">10×</button>
+    </div>
+  </div>
+  <div class="warnbox" id="httpsWarn">⚠ Phone sensors need HTTPS. Open this page from its GitHub Pages address, not as a downloaded file. Simulated drive works anywhere, even offline.</div>
+  <p class="muted small" id="modeHelp" style="margin-bottom:10px;font-size:12px"></p>
+
+  <div class="demo-grid">
+    <div>
+      <div class="banner" id="banner">
+        <div><div class="s" id="stName">READY</div><div class="sub" id="stSub">Press Start</div></div>
+        <div class="gauge">
+          <svg width="74" height="74" viewBox="0 0 74 74"><circle cx="37" cy="37" r="31" fill="none" stroke="#24314f" stroke-width="7"/><circle id="gArc" cx="37" cy="37" r="31" fill="none" stroke="#34d399" stroke-width="7" stroke-linecap="round" stroke-dasharray="194.8" stroke-dashoffset="194.8"/></svg>
+          <div class="v"><div id="confV">—</div><span>CONFIDENCE</span></div>
+        </div>
+      </div>
+      <div class="pt" id="ptCard"><div class="ic">🚦</div><div><div class="h">Public transport priority at junctions</div><div class="d" id="ptDec">—</div><div class="w" id="ptWhy">Starts when the bus has a trusted position</div></div><div class="j" id="ptJ"></div></div>
+      <div class="row">
+        <button class="btn primary" id="startBtn" style="flex:1" onclick="startStop()">▶ Start</button>
+        <button class="btn" id="resetBtn" onclick="resetSession(true)">Reset</button>
+        <label class="btn" id="loadBtn" style="display:none">Load CSV<input type="file" id="csvFile" accept=".csv,text/csv"></label>
+      </div>
+      <div class="attack">
+        <button class="btn jam" id="jamBtn" onclick="startJam()" disabled>Jam</button>
+        <button class="btn spoof" id="spoofBtn" onclick="startSpoof()" disabled>Spoof</button>
+        <button class="btn rest" id="restBtn" onclick="restoreGnss()" disabled>Restore</button>
+      </div>
+      <div class="row small muted" style="margin:8px 0 10px">Spoof type:
+        <div class="seg" id="spoofSeg"><button class="on" data-sp="drag">Gradual drag</button><button data-sp="jump">Sudden jump</button></div>
+      </div>
+      <div class="mapwrap">
+        <canvas id="map"></canvas>
+        <div class="legend">
+          <div><i style="background:var(--trust)"></i>TRUST estimate (your steps + compass)</div>
+          <div><i style="background:var(--gnss)"></i>GNSS fix accepted</div>
+          <div><i style="background:var(--bad)"></i>GNSS fix rejected</div>
+          <div><i style="background:var(--truth)"></i>True path</div>
+        </div>
+        <div class="maptools"><button onclick="zoomBy(0.67)" aria-label="Zoom in">+</button><button onclick="zoomBy(1.5)" aria-label="Zoom out">−</button><button id="followBtn" class="on" onclick="toggleFollow()" aria-label="Follow">◎</button></div>
+        <div class="attr" id="attr"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="padding:12px">
+        <h2 style="font-size:15px">Measured now</h2>
+        <div class="metrics">
+          <div class="met"><div class="l">Detection time</div><div class="v" id="mDet">—</div><div class="t">target ≤ 2 s</div></div>
+          <div class="met"><div class="l">Alert time</div><div class="v" id="mAlert">—</div><div class="t">target ≤ 1 s</div></div>
+          <div class="met"><div class="l">Recovery time</div><div class="v" id="mRec">—</div><div class="t">target ≤ 5 s</div></div>
+          <div class="met"><div class="l">Error vs truth</div><div class="v" id="mErr">—</div><div class="t">TRUST estimate</div></div>
+          <div class="met"><div class="l">Time on backup</div><div class="v" id="mOut">—</div><div class="t" id="mOutT">max error —</div></div>
+          <div class="met"><div class="l">Engine rate</div><div class="v" id="mHz">—</div><div class="t">target ≥ 10 Hz</div></div>
+        </div>
+      </div>
+      <div class="card" style="padding:12px">
+        <h2 style="font-size:15px">Sensors &amp; checks</h2>
+        <div class="srow"><span class="dot" id="dG"></span><span class="n">GNSS receiver</span><span class="v" id="vG">—</span></div>
+        <div class="srow"><span class="dot" id="dO"></span><span class="n" id="nO">Wheel-speed odometry</span><span class="v" id="vO">—</span></div>
+        <div class="srow"><span class="dot" id="dH"></span><span class="n" id="nH">Gyroscope heading</span><span class="v" id="vH">—</span></div>
+        <div class="srow"><span class="dot" id="dM"></span><span class="n">Map-matching</span><span class="v" id="vM">—</span></div>
+        <div class="srow"><span class="dot" id="cA"></span><span class="n">Check A · signal present</span><span class="v" id="vA">—</span></div>
+        <div class="srow"><span class="dot" id="cB"></span><span class="n">Check B · moves like vehicle</span><span class="v" id="vB">—</span></div>
+        <div class="srow"><span class="dot" id="cC"></span><span class="n">Check C · near estimate &amp; on road</span><span class="v" id="vC">—</span></div>
+      </div>
+      <div class="card" style="padding:12px">
+        <div class="row" style="justify-content:space-between;margin-bottom:8px"><h2 style="font-size:15px;margin:0">Event log</h2>
+          <div class="row"><button class="btn sm" onclick="exportLog()">Log CSV</button><button class="btn sm" onclick="exportTrack()">Track CSV</button></div></div>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="testCard">
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0">60-scenario test</h2><button class="btn primary sm" id="testBtn" onclick="runBatch()">Run test</button></div>
+    <p class="muted small" style="margin-top:6px">Runs the same engine on the simulated drive, faster than real time: 25 jamming attacks (60 s each), 25 spoofing attacks (15 gradual drag at 2–5 m/s, 10 sudden jumps of 40–300 m) and 10 clean drives to count false alarms. Each run uses new random sensor errors and attack timing.</p>
+    <div id="testOut"></div>
+  </div>
+</section>
+
+<!-- ═════════════ TAB 3: VALUE PROPOSITION ═════════════ -->
+<section class="tab" id="tab-value">
+  <div class="card">
+    <div class="kicker">Value proposition</div>
+    <p class="vp">For <em>road authorities and transport operators</em> who rely on satellite positioning, TRUST is a <em>software layer</em> that keeps vehicle position trustworthy when GNSS is jammed or spoofed — using <em>sensors already on the vehicle</em> — and <em>tells the operator the moment it can’t be sure</em>. Unlike more satellites or new roadside infrastructure, it needs no new hardware and never fails silently.</p>
+  </div>
+
+  <div class="card">
+    <h2>Value proposition canvas</h2>
+    <div class="canvasvp">
+      <div>
+        <div class="muted small" style="margin-bottom:6px;font-weight:700">CUSTOMER PROFILE — ROSDORNII, PT &amp; emergency operators</div>
+        <div class="vbox" style="margin-bottom:10px"><b>Jobs to be done</b><ul>
+          <li>Write a standard linking AVs to road infrastructure (2030 / 2036 goals)</li>
+          <li>Run public transport priority at junctions</li>
+          <li>Dispatch buses and emergency crews by vehicle position</li></ul></div>
+        <div class="vbox" style="margin-bottom:10px"><b class="fail">Pains</b><ul>
+          <li>GNSS lost in city blind spots and tunnels</li>
+          <li>Spoofing gives a confident, wrong position — nobody notices</li>
+          <li>Backups still need GNSS or drift</li>
+          <li>No agreed approach all parties accept</li></ul></div>
+        <div class="vbox"><b class="pass">Gains wanted</b><ul>
+          <li>Position you can trust every second</li>
+          <li>Early, clear warning when it can’t be trusted</li>
+          <li>Something deployable now, on existing fleets</li>
+          <li>Measurable numbers to put in a standard</li></ul></div>
+      </div>
+      <div>
+        <div class="muted small" style="margin-bottom:6px;font-weight:700">VALUE MAP — TRUST</div>
+        <div class="vbox" style="margin-bottom:10px"><b>Products &amp; services</b><ul>
+          <li>TRUST fusion module (software / firmware update)</li>
+          <li>Operator console: state, confidence, alerts, log</li>
+          <li>Test method + nine measurable requirements</li></ul></div>
+        <div class="vbox" style="margin-bottom:10px"><b class="fail">Pain relievers</b><ul>
+          <li>Keeps positioning through outages: wheels + gyro + map</li>
+          <li>Catches spoofing by checking GNSS against the vehicle’s own motion</li>
+          <li>Treats jamming and spoofing as different problems</li>
+          <li>Ignores bad GNSS instead of following it</li></ul></div>
+        <div class="vbox"><b class="pass">Gain creators</b><ul>
+          <li>Alert within 1 s; confidence score always visible</li>
+          <li>Zero new hardware or roadside infrastructure</li>
+          <li>Full audit log for incidents and theft disputes</li>
+          <li>Standard-ready numbers proven by repeatable tests</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Value for each stakeholder</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Stakeholder</th><th>What they get from TRUST</th></tr>
+      <tr><td><b>N. Pavlov · ROSDORNII</b></td><td>A concrete, tested approach and nine measurable requirements to write into the AV–infrastructure standard.</td></tr>
+      <tr><td><b>Ministry · Rosavtodor</b></td><td>Progress toward the 2030 / 2036 goals without funding new roadside infrastructure.</td></tr>
+      <tr><td><b>Public transport operators</b></td><td>Correct junction priority and dispatch, even in tunnels and urban canyons.</td></tr>
+      <tr><td><b>Emergency services</b></td><td>Crews are never sent from a false position without a warning.</td></tr>
+      <tr><td><b>Logistics &amp; freight</b></td><td>Spoofing that hides cargo theft is flagged and logged.</td></tr>
+      <tr><td><b>AV developers · GNSS/ITS providers</b></td><td>A common, testable resilience layer to build to.</td></tr>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <h2>Compared with the alternatives</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Option</th><th>Works when jammed</th><th>Catches spoofing</th><th>Warns operator</th><th>No new hardware</th><th>Deployable now</th></tr>
+      <tr><td>More satellites / better receiver</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="mid">~</td><td class="yes">✓</td></tr>
+      <tr><td>Inertial navigation alone</td><td class="mid">short</td><td class="no">✗</td><td class="no">✗</td><td class="mid">~</td><td class="yes">✓</td></tr>
+      <tr><td>Cellular / internet positioning</td><td class="no">✗ (needs GNSS)</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+      <tr><td>V2X cooperative positioning</td><td class="yes">✓</td><td class="mid">~</td><td class="mid">~</td><td class="no">✗</td><td class="no">✗</td></tr>
+      <tr><td>eLoran / UWB beacons</td><td class="yes">✓</td><td class="mid">~</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td></tr>
+      <tr><td>Manual radio check-ins</td><td class="mid">slow</td><td class="mid">slow</td><td class="mid">~</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+      <tr><td><b>TRUST</b></td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <h2>Measured proof from this prototype</h2>
+    <div id="proof" class="small"></div>
+  </div>
+
+  <div class="card"><p class="quote">“Safety shouldn’t depend on a signal you can’t verify — it should depend on a system honest enough to tell you the moment it can’t be sure.”</p></div>
+</section>
+</main>
+<footer>TRUST prototype · Team TRECK (KNUST): B. Dagbey · G. N. O. Mensah · E. Biney · International Transport Project Contest · Attacks are simulated in software; no radio signals are produced.</footer>
+
+<script>
+"use strict";
+/* ═══════════════ utilities ═══════════════ */
+const $ = id => document.getElementById(id);
+const DEG = Math.PI / 180;
+const wrapPi = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const hyp = Math.hypot;
+function mulberry32(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function makeGauss(rnd) { return () => { let u = 0, v = 0; while (u === 0) u = rnd(); while (v === 0) v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }; }
+const fmtS = s => s == null ? "—" : (s < 10 ? s.toFixed(1) : Math.round(s)) + " s";
+const fmtM = m => m == null ? "—" : (m < 10 ? m.toFixed(1) : Math.round(m)) + " m";
+const clock = t => { const m = Math.floor(t / 60), s = Math.floor(t % 60); return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0"); };
+
+/* ═══════════════ simulated city & drive ═══════════════ */
+const CITY = (() => {
+  const G = [-150, 0, 150, 300, 450, 600];
+  const streets = [];
+  for (const x of G) streets.push([x, -150, x, 600]);
+  for (const y of G) streets.push([-150, y, 600, y]);
+  const C = [[450, 0], [450, 450], [150, 450], [150, 150], [-150, 150], [-150, 0]];
+  const R = 15, pts = [], arcs = [];
+  const N = C.length;
+  for (let i = 0; i < N; i++) {
+    const P0 = C[(i - 1 + N) % N], P1 = C[i], P2 = C[(i + 1) % N];
+    const l1 = hyp(P1[0] - P0[0], P1[1] - P0[1]), l2 = hyp(P2[0] - P1[0], P2[1] - P1[1]);
+    const d1 = [(P1[0] - P0[0]) / l1, (P1[1] - P0[1]) / l1], d2 = [(P2[0] - P1[0]) / l2, (P2[1] - P1[1]) / l2];
+    const A = [P1[0] - d1[0] * R, P1[1] - d1[1] * R], B = [P1[0] + d2[0] * R, P1[1] + d2[1] * R];
+    const cross = d1[0] * d2[1] - d1[1] * d2[0];
+    const ln = [-d1[1], d1[0]];
+    const sg = cross > 0 ? 1 : -1;
+    const cen = [A[0] + ln[0] * R * sg, A[1] + ln[1] * R * sg];
+    const a0 = Math.atan2(A[1] - cen[1], A[0] - cen[0]);
+    let a1 = Math.atan2(B[1] - cen[1], B[0] - cen[0]);
+    let da = wrapPi(a1 - a0);
+    const K = 9, startIdx = pts.length;
+    for (let k = 0; k <= K; k++) { const a = a0 + da * k / K; pts.push([cen[0] + R * Math.cos(a), cen[1] + R * Math.sin(a)]); }
+    arcs.push([startIdx, pts.length - 1]);
+  }
+  pts.push(pts[0].slice());
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + hyp(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const total = cum[cum.length - 1];
+  const arcS = arcs.map(([a, b]) => [cum[a], cum[b]]);
+  const segs = [];
+  const addSeg = (ax, ay, bx, by) => { const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy; if (l2 < 1e-6) return; segs.push({ ax, ay, dx, dy, l2, h: Math.atan2(dx, dy) }); };
+  for (let i = 1; i < pts.length; i++) addSeg(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]);
+  for (const s of streets) addSeg(s[0], s[1], s[2], s[3]);
+  const tunnel = { x0: 443, x1: 457, y0: 120, y1: 300 };
+  return { streets, pts, cum, total, arcS, segs, tunnel };
+})();
+
+function nearestRoad(segs, e, n, theta) {
+  let best = null;
+  for (const s of segs) {
+    let t = ((e - s.ax) * s.dx + (n - s.ay) * s.dy) / s.l2; t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const px = s.ax + t * s.dx, py = s.ay + t * s.dy, d = hyp(e - px, n - py);
+    if (best && d >= best.d) continue;
+    let h = s.h;
+    if (theta != null) {
+      const dh = Math.abs(wrapPi(theta - s.h));
+      if (Math.min(dh, Math.PI - dh) > 0.3) continue;
+      if (dh > Math.PI / 2) h = wrapPi(s.h + Math.PI);
+    }
+    best = { d, px, py, h };
+  }
+  return best;
+}
+
+class SimWorld {
+  constructor(seed, opts = {}) {
+    this.rnd = mulberry32(seed); this.g = makeGauss(this.rnd);
+    this.tunnelOn = opts.tunnel !== false;
+    this.scaleErr = (this.rnd() * 2 - 1) * 0.004;
+    this.gyroBias = (this.rnd() * 2 - 1) * 0.03 * DEG;
+    this.s = opts.startS != null ? opts.startS : 40; this.v = 9; this.idx = 0;
+    this.gnssAcc = 0; this.t = 0;
+    const p = this.sample(this.s); this.prevH = p.h;
+  }
+  sample(s) {
+    const C = CITY; s = ((s % C.total) + C.total) % C.total;
+    let i = this.idx; if (C.cum[i] > s || C.cum[i + 1] < s) { i = 0; while (C.cum[i + 1] < s) i++; }
+    this.idx = i;
+    const f = (s - C.cum[i]) / (C.cum[i + 1] - C.cum[i]);
+    const a = C.pts[i], b = C.pts[i + 1];
+    return { e: a[0] + (b[0] - a[0]) * f, n: a[1] + (b[1] - a[1]) * f, h: Math.atan2(b[0] - a[0], b[1] - a[1]) };
+  }
+  targetV(s) {
+    const C = CITY; s = ((s % C.total) + C.total) % C.total;
+    for (const [a, b] of C.arcS) { let d = a - s; if (d < -C.total / 2) d += C.total; if ((s >= a && s <= b) || (d >= 0 && d < 35)) return 5.5; }
+    return 12;
+  }
+  inTunnel(p) { const T = CITY.tunnel; return this.tunnelOn && p.e > T.x0 && p.e < T.x1 && p.n > T.y0 && p.n < T.y1; }
+  step(dt) {
+    this.t += dt;
+    const tv = this.targetV(this.s);
+    this.v += clamp(tv - this.v, -2.5 * dt, 2 * dt);
+    this.s += this.v * dt;
+    const p = this.sample(this.s);
+    const yaw = wrapPi(p.h - this.prevH) / dt; this.prevH = p.h;
+    const truth = { e: p.e, n: p.n, h: p.h, v: this.v };
+    const odo = Math.max(0, this.v * (1 + this.scaleErr) + this.g() * 0.05);
+    const gyro = yaw + this.gyroBias + this.g() * 0.003;
+    let gnss = null; const tunnel = this.inTunnel(p);
+    this.gnssAcc += dt;
+    if (this.gnssAcc >= 1 - 1e-9) {
+      this.gnssAcc -= 1;
+      gnss = tunnel ? { type: "nofix" } : { type: "fix", e: p.e + this.g() * 2, n: p.n + this.g() * 2, acc: 4, ve: this.v * Math.sin(p.h) + this.g() * 0.12, vn: this.v * Math.cos(p.h) + this.g() * 0.12 };
+    }
+    return { truth, odo, gyro, gnss, tunnel };
+  }
+}
+
+/* ═══════════════ attack injector (software only) ═══════════════ */
+class Attack {
+  constructor() { this.type = null; }
+  start(type, t, o = {}) { this.type = type; this.onset = t; Object.assign(this, { kind: "drag", speed: 3, bearing: 0.8, je: 0, jn: 0 }, o); }
+  stop() { this.type = null; }
+  apply(msg, t) {
+    if (!this.type || !msg) return msg;
+    if (this.type === "jam") return { type: "nofix", jammed: true };
+    if (msg.type !== "fix") return msg;
+    const m = Object.assign({}, msg, { spoofed: true });
+    if (this.kind === "drag") {
+      const d = this.speed * (t - this.onset);
+      m.e += d * Math.sin(this.bearing); m.n += d * Math.cos(this.bearing);
+      if (m.ve != null) { m.ve += this.speed * Math.sin(this.bearing); m.vn += this.speed * Math.cos(this.bearing); }
+    } else { m.e += this.je; m.n += this.jn; }
+    return m;
+  }
+}
+
+/* ═══════════════ TRUST engine ═══════════════ */
+class TrustEngine {
+  constructor(o = {}) {
+    this.segs = o.segs || null;
+    this.velTh = o.velTh || 1.2; this.posMin = o.posMin || 12; this.roadTh = o.roadTh || 20;
+    this.timeout = o.timeout || 3.5; this.errPerM = o.errPerM || 0.03; this.errPerMMatched = o.errPerMMatched || 0.004;
+    this.state = "INIT"; this.conf = 0; this.unc = 50; this.init = false;
+    this.e = 0; this.n = 0; this.th = 0; this.lastFixT = -1e9; this.fail = 0; this.okCount = 0;
+    this.events = []; this.checks = { A: null, B: null, C: null, dv: null, r: null, road: null };
+    this.matched = null; this.distDR = 0; this.lastAcc = 5; this.badState = "ALERT";
+    this.pd = { e: 0, n: 0 }; this.hist = []; this.win = o.win || 5;   // movement check when the receiver gives no velocity
+  }
+  setState(t, to, reason) { const from = this.state; if (from === to) return; this.state = to; this.events.push({ t, from, to, reason }); }
+  step(t, dt, inp) {
+    const g = inp.gnss;
+    if (!this.init) {
+      if (g && g.type === "fix") {
+        this.e = g.e; this.n = g.n; this.init = true; this.lastFixT = t; this.unc = g.acc || 5;
+        if (g.ve != null && hyp(g.ve, g.vn) > 1) this.th = Math.atan2(g.ve, g.vn); else if (inp.heading != null) this.th = inp.heading;
+        this.setState(t, "NORMAL", "First GNSS fix — position initialised"); this.conf = 95;
+      }
+      return;
+    }
+    // 1 · predict (dead reckoning)
+    if (inp.heading != null) this.th = wrapPi(this.th + 0.5 * wrapPi(inp.heading - this.th));
+    else if (inp.yawRate != null) this.th = wrapPi(this.th + inp.yawRate * dt);
+    const v = inp.v || 0;
+    this.e += v * dt * Math.sin(this.th); this.n += v * dt * Math.cos(this.th);
+    this.pd.e += v * dt * Math.sin(this.th); this.pd.n += v * dt * Math.cos(this.th);
+    const backup = this.state !== "NORMAL";
+    // 2 · map-matching while on backup
+    this.matched = null;
+    if (inp.yawRate != null) this.yawF = (this.yawF || 0) + (inp.yawRate - (this.yawF || 0)) * Math.min(1, dt / 0.8);
+    const turning = inp.yawRate != null && Math.abs(this.yawF) > 0.03;   // smoothed gyro says a turn is in progress
+    this.turning = turning;
+    if (this.segs && backup && !turning) {
+      const m = nearestRoad(this.segs, this.e, this.n, this.th);
+      if (m && m.d < 15) { this.e = m.px; this.n = m.py; this.th = wrapPi(this.th + 0.05 * wrapPi(m.h - this.th)); this.matched = m; }
+    }
+    if (backup) { this.distDR += v * dt; this.unc += (this.matched ? this.errPerMMatched : this.errPerM) * v * dt + 0.005 * dt; }
+    else { this.distDR = 0; this.unc += (2.5 - this.unc) * 0.2; }
+    // 3 · checks on GNSS
+    if (g && g.type === "nofix") {
+      this.checks.A = false; this.okCount = 0;
+      if (this.state === "NORMAL" || this.state === "RECOVERING") this.setState(t, "DEGRADED", g.jammed ? "Receiver reports no fix (signal jammed)" : "Receiver reports no fix (signal blocked)");
+    } else if (g && g.type === "fix") {
+      this.lastFixT = t; this.checks.A = true; this.lastAcc = g.acc || 5;
+      const r = hyp(g.e - this.e, g.n - this.n), sig = hyp(this.lastAcc, this.unc);
+      const posOK = r < Math.max(4 * sig, this.posMin);
+      let velOK = true, dv = null; this.checks.mode = "vel";
+      if (g.ve != null) { dv = hyp(g.ve - v * Math.sin(this.th), g.vn - v * Math.cos(this.th)); velOK = dv < this.velTh; }
+      else {
+        // No GNSS velocity (common on phones): compare how far GNSS moved with how far the steps + compass moved
+        this.checks.mode = "move";
+        const old = this.hist.find(h => h.posOK && t - h.t >= 2 && t - h.t <= this.win + 0.5);
+        if (old) {
+          const T = t - old.t;
+          dv = hyp((g.e - old.ge) - (this.pd.e - old.de), (g.n - old.gn) - (this.pd.n - old.dn)) / T;
+          velOK = dv < Math.max(this.velTh, 1.5 * this.lastAcc / T);
+        } else if (this.state !== "NORMAL") velOK = false;   // not yet proven: wait for 2 s of consistent fixes before trusting again
+      }
+      let roadOK = true, road = null;
+      if (this.segs) { const m = nearestRoad(this.segs, g.e, g.n, null); road = m ? m.d : 999; roadOK = road < this.roadTh; }
+      this.checks.B = velOK; this.checks.C = posOK && roadOK; this.checks.dv = dv; this.checks.r = r; this.checks.road = road;
+      const ok = posOK && velOK && roadOK;
+      this.hist.push({ t, ge: g.e, gn: g.n, de: this.pd.e, dn: this.pd.n, posOK }); this.hist = this.hist.filter(h => t - h.t <= this.win + 1);
+      const why = () => [!velOK ? (this.checks.mode === "move" ? "GNSS moved differently from steps+compass by " : "GNSS velocity disagrees with wheels+gyro by ") + dv.toFixed(1) + " m/s" : null, !posOK ? "GNSS " + Math.round(r) + " m from TRUST estimate" : null, !roadOK ? "GNSS position off-road" : null].filter(Boolean).join("; ");
+      switch (this.state) {
+        case "NORMAL":
+          if (ok) {
+            this.fail = 0;
+            const k = inp.stationary ? (r > Math.max(10, 2 * this.lastAcc) ? 0.05 : 0) : 0.35;   // standing still: hold position
+            this.e += k * (g.e - this.e); this.n += k * (g.n - this.n);
+            if (g.ve != null && hyp(g.ve, g.vn) > 2) this.th = wrapPi(this.th + 0.2 * wrapPi(Math.atan2(g.ve, g.vn) - this.th));
+          } else { this.fail++; if (this.fail >= 2) { this.badState = "ALERT"; this.setState(t, "ALERT", "Spoofing suspected — " + why()); } }
+          break;
+        case "DEGRADED":
+          if (ok) { this.okCount = 1; this.fail = 0; this.badState = "DEGRADED"; this.setState(t, "RECOVERING", "GNSS signal back and consistent — re-validating"); }
+          else { this.fail++; if (this.fail >= 2) { this.badState = "ALERT"; this.setState(t, "ALERT", "Signal back but fails checks — " + why()); } }
+          break;
+        case "ALERT":
+          if (ok) { this.okCount = 1; this.fail = 0; this.setState(t, "RECOVERING", "GNSS consistent again — re-validating"); }
+          else this.okCount = 0;
+          break;
+        case "RECOVERING":
+          if (ok) {
+            this.okCount++; const k2 = inp.stationary ? 0.05 : 0.25; this.e += k2 * (g.e - this.e); this.n += k2 * (g.n - this.n);
+            if (this.okCount >= 3) { this.fail = 0; this.setState(t, "NORMAL", "GNSS re-validated (3 consistent fixes) — trusted again"); }
+          } else { this.okCount = 0; this.fail = 2; this.setState(t, "ALERT", "Re-validation rejected — " + why()); }
+          break;
+      }
+    }
+    if (this.state === "NORMAL" && t - this.lastFixT > this.timeout) { this.checks.A = false; this.setState(t, "DEGRADED", "No GNSS data for " + this.timeout + " s"); }
+    // 4 · confidence
+    let target;
+    if (this.state === "NORMAL") target = clamp(100 - Math.max(0, this.lastAcc - 5) * 1.5, 70, 100);
+    else if (this.state === "RECOVERING") target = 100;
+    else { target = Math.max(40, 95 - this.unc * 5); if (this.state === "ALERT") target = Math.min(target, 75); }
+    const rate = this.state === "RECOVERING" ? 0.08 : (target < this.conf ? 0.35 : 0.15);
+    this.conf += (target - this.conf) * rate;
+  }
+}
+
+/* ═══════════════ session ═══════════════ */
+const S = {
+  mode: "sim", running: false, speed: 1, t: 0, timer: null, seed: 7,
+  world: null, eng: null, attack: new Attack(), truth: null, lastFix: null, lastMsg: null,
+  trail: { truth: [], est: [], ok: [], bad: [] }, log: [], track: [],
+  pending: null, recPending: null, outage: null, best60: 0,
+  dets: [], recs: [], alerts: [], alertPending: null, lastDet: null, lastRec: null,
+  rateWin: { n: 0, t0: performance.now(), hz: null }, inTunnel: false, batch: null, spoofKind: "drag",
+  sens: { v: null, head: null, stepTimes: [], fixes: [], origin: null, compass: false, motion: false },
+  replay: { rows: null, i: 0, t0: 0, vt: 0, name: "" }, view: { cx: 0, cy: 0, mpp: 0.7, follow: true }, tiles: {}
+};
+
+function newEngine() {
+  if (S.mode === "sim") return new TrustEngine({ segs: CITY.segs });
+  return new TrustEngine({ segs: null, velTh: 1.5, posMin: 25, timeout: 8, errPerM: 0.1, win: 5 });
+}
+function resetSession(manual) {
+  if (manual && S.running) startStop();
+  S.t = 0; S.attack.stop(); S.eng = newEngine(); S.world = S.mode === "sim" ? new SimWorld(S.seed++) : null;
+  S.trail = { truth: [], est: [], ok: [], bad: [] }; S.log = []; S.track = [];
+  S.pending = null; S.recPending = null; S.outage = null; S.lastDet = null; S.lastRec = null; S.inTunnel = false;
+  S.lastFix = null; S.lastMsg = null; S.truth = null; S.alertPending = null; S.lastPT = null; S.lastTruthFix = null; S.jamAcc = 0;
+  S.replay.i = 0; S.replay.vt = 0;
+  S.sens.fixes = []; S.sens.origin = S.mode === "sim" ? null : S.sens.origin;
+  if (S.mode === "sim") { S.view.mpp = 0.7; }
+  $("log").innerHTML = ""; addLog("INFO", "Session ready · mode: " + modeName());
+  updateButtons(); updateUI(); render();
+}
+const modeName = () => ({ sim: "simulated drive", live: "phone sensors", replay: "replay" })[S.mode];
+
+function startStop() {
+  if (S.running) { S.running = false; clearInterval(S.timer); $("startBtn").textContent = "▶ Resume"; updateButtons(); return; }
+  if (S.mode === "live" && !S.liveStarted) { startLiveSensors(); }
+  if (S.mode === "replay" && !S.replay.rows) { $("csvFile").click(); return; }
+  S.running = true; $("startBtn").textContent = "⏸ Pause";
+  S.lastWall = performance.now();
+  S.timer = setInterval(loop, 100);
+  updateButtons();
+}
+
+function loop() {
+  const now = performance.now();
+  if (S.mode === "live") { const dt = Math.min(0.5, (now - S.lastWall) / 1000); S.lastWall = now; stepOnce(dt); }
+  else { for (let k = 0; k < S.speed; k++) stepOnce(0.1); }
+  S.rateWin.n++;
+  if (now - S.rateWin.t0 >= 1000) { S.rateWin.hz = S.rateWin.n / ((now - S.rateWin.t0) / 1000) * (S.mode === "live" ? 1 : 1); S.rateWin.n = 0; S.rateWin.t0 = now; }
+  updateUI(); render();
+}
+
+function stepOnce(dt) {
+  S.t += dt; const t = S.t; let inp = null, truth = null, raw = null;
+  if (S.mode === "sim") {
+    const o = S.world.step(dt); truth = o.truth; raw = o.gnss;
+    if (o.tunnel !== S.inTunnel) {
+      S.inTunnel = o.tunnel;
+      if (o.tunnel) { addLog("ATTACK", "Bus enters tunnel — natural GNSS loss (no attack)"); if (!S.attack.type && S.eng.state === "NORMAL") S.pending = { kind: "tunnel", onset: t, expect: "DEGRADED" }; }
+      else { addLog("INFO", "Bus leaves tunnel — sky visible again"); if (!S.attack.type) S.recPending = { start: t }; }
+    }
+    inp = { v: o.odo, yawRate: o.gyro, gnss: S.attack.apply(raw, t) };
+  } else if (S.mode === "live") {
+    const sv = S.sens; const nowMs = Date.now();
+    sv.stepTimes = sv.stepTimes.filter(x => nowMs - x < 2500);
+    const lastStep = sv.stepTimes.length ? sv.stepTimes[sv.stepTimes.length - 1] : 0;
+    const vRaw = nowMs - lastStep > 1300 ? 0 : sv.stepTimes.filter(x => nowMs - x < 2000).length * STRIDE_M / 2;
+    S.vF = (S.vF || 0) + (vRaw - (S.vF || 0)) * 0.4;
+    const v = vRaw === 0 && S.vF < 0.15 ? 0 : S.vF;
+    S.stationary = v < 0.15;
+    let msg = null;
+    if (sv.fixes.length) { const f = sv.fixes.pop(); sv.fixes = []; raw = f; truth = { e: f.e, n: f.n }; S.lastTruthFix = truth; msg = f; }
+    else truth = S.lastTruthFix || null;
+    if (S.attack.type === "jam") { S.jamAcc = (S.jamAcc || 0) + dt; msg = null; if (S.jamAcc >= 1) { S.jamAcc = 0; msg = { type: "nofix", jammed: true }; } }
+    else msg = S.attack.apply(msg, t);
+    inp = { v, heading: sv.head, gnss: msg, stationary: S.stationary }; S.liveV = v;
+  } else {
+    const R = S.replay; R.vt += dt * 1000; let msg = null;
+    while (R.i < R.rows.length && R.rows[R.i].ts - R.t0 <= R.vt) {
+      const r = R.rows[R.i++];
+      if (r.head != null) S.sens.head = r.head * DEG;
+      if (r.v != null) S.liveV = r.v;
+      if (r.fix) { raw = r.fix; S.lastTruthFix = { e: r.fix.e, n: r.fix.n }; msg = r.fix; }
+    }
+    truth = S.lastTruthFix || null;
+    if (S.attack.type === "jam") { S.jamAcc = (S.jamAcc || 0) + dt; msg = null; if (S.jamAcc >= 1) { S.jamAcc = 0; msg = { type: "nofix", jammed: true }; } }
+    else msg = S.attack.apply(msg, t);
+    inp = { v: S.liveV || 0, heading: S.sens.head, gnss: msg };
+    if (R.i >= R.rows.length) { addLog("INFO", "Replay finished"); startStop(); }
+  }
+  S.truth = truth;
+  if (inp.gnss) S.lastMsg = inp.gnss;
+  const eng = S.eng; eng.step(t, dt, inp);
+  // trails
+  if (truth && (S.trail.truth.length === 0 || t % 0.5 < dt)) pushTrail(S.trail.truth, [truth.e, truth.n]);
+  if (eng.init) pushTrail(S.trail.est, [eng.e, eng.n, eng.state]);
+  if (inp.gnss && inp.gnss.type === "fix") {
+    const accepted = eng.state === "NORMAL" || (eng.state === "RECOVERING");
+    pushTrail(accepted ? S.trail.ok : S.trail.bad, [inp.gnss.e, inp.gnss.n], 400);
+    S.lastFix = { e: inp.gnss.e, n: inp.gnss.n, ok: accepted };
+  }
+  // events → metrics
+  for (const ev of eng.events.splice(0)) handleEvent(ev);
+  // outage error tracking
+  if (S.outage && truth && eng.init) { const err = hyp(eng.e - truth.e, eng.n - truth.n); S.outage.maxErr = Math.max(S.outage.maxErr, err); if (t - S.outage.start >= 60 && S.outage.maxErr <= 5) S.best60 = Math.max(S.best60, t - S.outage.start); }
+  if (eng.init && Math.floor(t) !== Math.floor(t - dt)) recordTrack(truth);
+}
+function pushTrail(arr, p, max = 3000) { arr.push(p); if (arr.length > max) arr.shift(); }
+
+function handleEvent(ev) {
+  const t = ev.t;
+  addLog(ev.to, ev.reason, t);
+  if (ev.from === "NORMAL" && ev.to !== "NORMAL") S.outage = { start: t, maxErr: 0 };
+  if (S.pending && ev.to === S.pending.expect) {
+    const lat = t - S.pending.onset; S.lastDet = { lat, kind: S.pending.kind }; S.dets.push(lat);
+    addLog("INFO", "Detected " + S.pending.kind + " in " + lat.toFixed(1) + " s", t);
+    S.alertPending = performance.now(); S.pending = null;
+  } else if (ev.from === "NORMAL" && ev.to !== "NORMAL" && !S.pending && !S.attack.type && !S.inTunnel) {
+    addLog("INFO", "Unprompted alarm (no attack active) — counted as a false alarm", t);
+  }
+  if (ev.to === "NORMAL" && ev.from !== "INIT") {
+    if (S.recPending) { const rec = t - S.recPending.start; S.lastRec = rec; S.recs.push(rec); addLog("INFO", "Recovered " + rec.toFixed(1) + " s after GNSS returned", t); S.recPending = null; }
+    if (S.outage) { const d = t - S.outage.start; addLog("INFO", "Backup ran " + d.toFixed(0) + " s · max error " + S.outage.maxErr.toFixed(1) + " m", t); S.outage = null; }
+  }
+}
+function recordTrack(truth) {
+  const e = S.eng, f = S.lastMsg;
+  const row = { t: S.t.toFixed(1), state: e.state, conf: e.conf.toFixed(0), est_e: e.e.toFixed(2), est_n: e.n.toFixed(2),
+    truth_e: truth ? truth.e.toFixed(2) : "", truth_n: truth ? truth.n.toFixed(2) : "", err_m: truth ? hyp(e.e - truth.e, e.n - truth.n).toFixed(2) : "",
+    gnss: f ? (f.type === "fix" ? (f.spoofed ? "spoofed" : "fix") : "nofix") : "" };
+  if (S.sens.origin && S.mode !== "sim") { const ll = toLL(e.e, e.n); row.est_lat = ll[0].toFixed(7); row.est_lng = ll[1].toFixed(7); }
+  S.track.push(row);
+}
+
+/* ═══════════════ attacks (UI) ═══════════════ */
+function startJam() {
+  S.attack.start("jam", S.t); S.jamAcc = 0;
+  addLog("ATTACK", "Jamming started (simulated) — receiver will report no fix");
+  if (S.eng.state === "NORMAL") S.pending = { kind: "jamming", onset: S.t, expect: "DEGRADED" }; else addLog("INFO", "Already on backup — detection time not measured");
+  S.recPending = null; updateButtons();
+}
+function startSpoof() {
+  // On the phone / replay, push the fake position sideways (90° to the way you walk) so the different direction is obvious
+  const side = Math.random() < 0.5 ? 1 : -1;
+  const b = S.mode === "sim" ? Math.random() * 2 * Math.PI : wrapPi(S.eng.th + side * Math.PI / 2);
+  if (S.spoofKind === "drag") S.attack.start("spoof", S.t, { kind: "drag", speed: 3, bearing: b });
+  else { const d = 250; S.attack.start("spoof", S.t, { kind: "jump", je: d * Math.sin(b), jn: d * Math.cos(b) }); }
+  addLog("ATTACK", S.spoofKind === "drag" ? "Spoofing started (simulated) — false position dragged away at 3 m/s" : "Spoofing started (simulated) — false position jumps 250 m");
+  if (S.eng.state === "NORMAL") S.pending = { kind: "spoofing", onset: S.t, expect: "ALERT" }; else addLog("INFO", "Already on backup — detection time not measured");
+  S.recPending = null; updateButtons();
+}
+function restoreGnss() {
+  S.attack.stop(); S.pending = null; addLog("ATTACK", "Attack stopped — genuine GNSS returns");
+  if (S.eng.state !== "NORMAL") S.recPending = { start: S.t };
+  updateButtons();
+}
+function updateButtons() {
+  const on = S.running && S.eng && S.eng.init;
+  $("jamBtn").disabled = !on || !!S.attack.type; $("spoofBtn").disabled = !on || !!S.attack.type; $("restBtn").disabled = !S.attack.type;
+}
+
+/* ═══════════════ log & export ═══════════════ */
+function addLog(type, msg, t) {
+  const tt = t != null ? t : S.t;
+  S.log.push({ t: tt.toFixed(1), wall: new Date().toISOString(), type, msg });
+  const d = document.createElement("div"); d.className = "le " + type;
+  d.innerHTML = '<span class="tm">' + clock(tt) + "</span>" + (["NORMAL", "DEGRADED", "ALERT", "RECOVERING"].includes(type) ? "<b>" + type + "</b> · " : "") + msg.replace(/</g, "&lt;");
+  $("log").prepend(d); while ($("log").children.length > 120) $("log").lastChild.remove();
+}
+function download(name, text) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type: "text/csv" })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+function exportLog() { download("trust_event_log.csv", "t_s,wall_time,type,event\n" + S.log.map(r => [r.t, r.wall, r.type, '"' + r.msg.replace(/"/g, "'") + '"'].join(",")).join("\n")); }
+function exportTrack() { if (!S.track.length) return; const k = Object.keys(S.track[S.track.length - 1]); download("trust_track.csv", k.join(",") + "\n" + S.track.map(r => k.map(x => r[x] ?? "").join(",")).join("\n")); }
+
+/* ═══════════════ UI update ═══════════════ */
+const STATE_SUB = { NORMAL: "GNSS trusted · all checks pass", DEGRADED: "GNSS lost · running on backup sensors", ALERT: "GNSS rejected · spoofing suspected", RECOVERING: "Re-validating GNSS before trusting it" };
+function setDot(id, c) { $(id).className = "dot " + c; }
+function updateUI() {
+  const e = S.eng;
+  const st = e && e.init ? e.state : "READY";
+  $("banner").className = "banner " + st;
+  $("stName").textContent = st;
+  $("stSub").textContent = e && e.init ? (lastReason() || STATE_SUB[st]) : (S.running ? "Waiting for first GNSS fix…" : "Press Start");
+  const c = e && e.init ? e.conf : 0;
+  $("confV").textContent = e && e.init ? Math.round(c) + "%" : "—";
+  $("gArc").setAttribute("stroke-dashoffset", (194.8 * (1 - c / 100)).toFixed(1));
+  $("gArc").setAttribute("stroke", c >= 85 ? "#34d399" : c >= 60 ? "#fbbf24" : "#f43f5e");
+  $("mDet").textContent = S.lastDet ? S.lastDet.lat.toFixed(1) + " s" : (S.pending ? "…" : "—");
+  $("mDet").className = "v " + (S.lastDet ? (S.lastDet.lat <= 2.05 ? "pass" : "fail") : "");
+  $("mRec").textContent = S.lastRec != null ? S.lastRec.toFixed(1) + " s" : (S.recPending ? "…" : "—");
+  $("mRec").className = "v " + (S.lastRec != null ? (S.lastRec <= 5 ? "pass" : "fail") : "");
+  const al = S.alerts.length ? S.alerts[S.alerts.length - 1] : null;
+  $("mAlert").textContent = al != null ? (al < 1000 ? Math.round(al) + " ms" : (al / 1000).toFixed(1) + " s") : "—";
+  $("mAlert").className = "v " + (al != null ? (al <= 1000 ? "pass" : "fail") : "");
+  if (e && e.init && S.truth) { const err = hyp(e.e - S.truth.e, e.n - S.truth.n); $("mErr").textContent = fmtM(err); } else $("mErr").textContent = "—";
+  if (S.outage) { const d = S.t - S.outage.start; $("mOut").textContent = fmtS(d); $("mOutT").textContent = "max error " + fmtM(S.outage.maxErr); $("mOut").className = "v " + (S.outage.maxErr <= 5 ? "pass" : "fail"); }
+  else { $("mOut").textContent = "—"; $("mOut").className = "v"; $("mOutT").textContent = S.best60 ? "held ≤5 m for " + Math.round(S.best60) + " s" : "max error —"; }
+  const hz = S.rateWin.hz != null ? (S.mode === "live" ? S.rateWin.hz : 10) : null;
+  $("mHz").textContent = hz != null ? hz.toFixed(1) + " Hz" : "—"; $("mHz").className = "v " + (hz != null ? (hz >= 9.5 ? "pass" : "fail") : "");
+  // sensors
+  const m = S.lastMsg, ck = e ? e.checks : {};
+  if (!e || !e.init) { ["dG", "dO", "dH", "dM", "cA", "cB", "cC"].forEach(i => setDot(i, "off")); }
+  if (m) { if (m.type === "fix") { setDot("dG", m.spoofed ? "warn" : "ok"); $("vG").textContent = "fix ±" + Math.round(m.acc || 5) + " m" + (m.spoofed ? " (injected)" : ""); } else { setDot("dG", "bad"); $("vG").textContent = m.jammed ? "no fix · jammed" : "no fix · blocked"; } }
+  if (S.mode === "sim") {
+    $("nO").textContent = "Wheel-speed odometry"; $("nH").textContent = "Gyroscope (IMU)";
+    if (S.world) { setDot("dO", "ok"); $("vO").textContent = (S.world.v * 3.6).toFixed(0) + " km/h"; setDot("dH", "ok"); $("vH").textContent = (Math.round((e.th / DEG) + 360) % 360) + "°"; }
+  } else {
+    $("nO").textContent = "Step odometry (phone)"; $("nH").textContent = "Compass heading (phone)";
+    setDot("dO", S.sens.motion || S.mode === "replay" ? "ok" : "off"); $("vO").textContent = S.liveV != null ? (S.stationary ? "standing still" : "walking " + (S.liveV * 3.6).toFixed(1) + " km/h") : "—";
+    setDot("dH", S.sens.head != null ? "ok" : "off"); $("vH").textContent = S.sens.head != null ? (Math.round((S.sens.head / DEG) + 360) % 360) + "°" : (S.mode === "live" ? "no compass" : "—");
+  }
+  if (S.mode === "sim" && e) { if (e.state !== "NORMAL" && e.init) { setDot("dM", e.matched ? "ok" : "warn"); $("vM").textContent = e.matched ? "on road (" + e.matched.d.toFixed(1) + " m)" : "no road match"; } else { setDot("dM", "off"); $("vM").textContent = "standby (GNSS trusted)"; } }
+  else { setDot("dM", "off"); $("vM").textContent = "no road network in this mode"; }
+  if (e && e.init) {
+    setDot("cA", ck.A === false ? "bad" : "ok"); $("vA").textContent = ck.A === false ? "no signal" : "signal present";
+    setDot("cB", ck.B === false ? "bad" : ck.dv == null ? "off" : "ok"); $("vB").textContent = ck.dv == null ? (ck.mode === "move" ? "collecting movement…" : "no GNSS velocity") : (ck.mode === "move" ? "movement Δ " : "Δv ") + ck.dv.toFixed(1) + " m/s";
+    setDot("cC", ck.C === false ? "bad" : ck.r == null ? "off" : "ok"); $("vC").textContent = ck.r == null ? "—" : Math.round(ck.r) + " m" + (ck.road != null ? " · road " + Math.round(ck.road) + " m" : "");
+  }
+  if (S.alertPending != null) { const p = S.alertPending; S.alertPending = null; requestAnimationFrame(() => { S.alerts.push(performance.now() - p); }); }
+  updatePT(); updateButtons(); updateReqs();
+}
+/* Public transport priority: what TRUST tells the junction controller */
+function ptDecision() {
+  const e = S.eng; if (!e || !e.init) return null;
+  if (e.state === "NORMAL") return { cls: "ok", d: "Request SENT", w: "Position trusted · GNSS checked (" + Math.round(e.conf) + "%)" };
+  if (e.state === "DEGRADED") return e.conf >= 60
+    ? { cls: "flag", d: "Request SENT · flagged", w: "On backup: wheels + gyro + road map (" + Math.round(e.conf) + "%)" }
+    : { cls: "held", d: "Request HELD", w: "Backup confidence below 60% — dispatcher informed" };
+  if (e.state === "ALERT") return { cls: "held", d: "Request HELD", w: "GNSS rejected (possible spoofing) — dispatcher informed" };
+  return { cls: "flag", d: "Request HELD · re-validating", w: "Waiting for 3 good GNSS fixes before sending" };
+}
+function nextJunctionM() {
+  if (S.mode !== "sim" || !S.world) return null;
+  const C = CITY, s = ((S.world.s % C.total) + C.total) % C.total; let best = Infinity;
+  for (const [a] of C.arcS) { let d = a - s; if (d < 0) d += C.total; best = Math.min(best, d); }
+  return best;
+}
+function updatePT() {
+  const p = ptDecision(), card = $("ptCard");
+  if (!p) { card.className = "pt"; $("ptDec").textContent = "—"; $("ptWhy").textContent = "Starts when the bus has a trusted position"; $("ptJ").textContent = ""; return; }
+  card.className = "pt " + p.cls; $("ptDec").textContent = p.d; $("ptWhy").textContent = p.w;
+  const j = nextJunctionM(); $("ptJ").innerHTML = j != null ? "next junction<br><b>" + Math.round(j) + " m</b>" : "";
+  if (S.lastPT !== p.d && S.running) { if (S.lastPT) addLog("INFO", "PT priority: " + p.d + " — " + p.w); S.lastPT = p.d; }
+}
+function lastReason() { const e = S.eng; for (let i = S.log.length - 1; i >= 0; i--) if (S.log[i].type === e.state) return S.log[i].msg; return null; }
+
+/* ═══════════════ map rendering ═══════════════ */
+const cv = $("map"), ctx = cv.getContext("2d");
+function sizeCanvas() { const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1; cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d); ctx.setTransform(d, 0, 0, d, 0, 0); render(); }
+window.addEventListener("resize", sizeCanvas);
+function zoomBy(f) { S.view.mpp = clamp(S.view.mpp * f, 0.08, 40); render(); }
+function toggleFollow() { S.view.follow = !S.view.follow; $("followBtn").classList.toggle("on", S.view.follow); render(); }
+let drag = null;
+cv.addEventListener("pointerdown", ev => { drag = { x: ev.clientX, y: ev.clientY, cx: S.view.cx, cy: S.view.cy }; cv.setPointerCapture(ev.pointerId); });
+cv.addEventListener("pointermove", ev => { if (!drag) return; const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4 && S.view.follow) toggleFollow(); S.view.cx = drag.cx - dx * S.view.mpp; S.view.cy = drag.cy + dy * S.view.mpp; render(); });
+cv.addEventListener("pointerup", () => drag = null);
+cv.addEventListener("wheel", ev => { ev.preventDefault(); zoomBy(ev.deltaY > 0 ? 1.2 : 0.83); }, { passive: false });
+
+function render() {
+  const W = cv.clientWidth, H = cv.clientHeight; if (!W) return;
+  const v = S.view, e = S.eng;
+  if (v.follow && e && e.init) { v.cx += (e.e - v.cx) * 0.25; v.cy += (e.n - v.cy) * 0.25; }
+  const X = x => W / 2 + (x - v.cx) / v.mpp, Y = y => H / 2 - (y - v.cy) / v.mpp;
+  ctx.fillStyle = "#0e1528"; ctx.fillRect(0, 0, W, H);
+  if (S.mode === "sim") drawCity(X, Y); else drawTiles(X, Y, W, H);
+  // truth trail
+  line(S.trail.truth, X, Y, "rgba(229,231,235,.55)", 1.6, [5, 5]);
+  // accepted / rejected fixes
+  for (const p of S.trail.ok) dot(X(p[0]), Y(p[1]), 2.6, "rgba(34,211,238,.85)");
+  for (const p of S.trail.bad) dot(X(p[0]), Y(p[1]), 3, "rgba(244,63,94,.9)");
+  // estimate trail coloured by state
+  const col = { NORMAL: "#a78bfa", DEGRADED: "#fbbf24", ALERT: "#e879f9", RECOVERING: "#60a5fa" };   // ALERT trail fuchsia so it is not confused with red rejected GNSS
+  const tr = S.trail.est;
+  ctx.lineWidth = 3.2; ctx.lineCap = "round"; ctx.setLineDash([]);
+  for (let i = 1; i < tr.length; i++) { ctx.strokeStyle = col[tr[i][2]] || "#a78bfa"; ctx.beginPath(); ctx.moveTo(X(tr[i - 1][0]), Y(tr[i - 1][1])); ctx.lineTo(X(tr[i][0]), Y(tr[i][1])); ctx.stroke(); }
+  // last fix line to estimate when rejected
+  if (S.lastFix && e && e.init && !S.lastFix.ok) {
+    ctx.strokeStyle = "rgba(244,63,94,.7)"; ctx.setLineDash([4, 4]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(X(e.e), Y(e.n)); ctx.lineTo(X(S.lastFix.e), Y(S.lastFix.n)); ctx.stroke(); ctx.setLineDash([]);
+    const d = hyp(S.lastFix.e - e.e, S.lastFix.n - e.n);
+    if (S.attack.type !== "spoof") { ctx.fillStyle = "#f43f5e"; ctx.font = "700 11px system-ui"; ctx.fillText("GNSS rejected · " + Math.round(d) + " m off", X(S.lastFix.e) + 6, Y(S.lastFix.n) - 6); }
+  }
+  // label the rejected GNSS trail while spoofing
+  if (S.attack.type === "spoof" && S.trail.bad.length > 2) {
+    const p = S.trail.bad[S.trail.bad.length - 1];
+    const off = e && e.init ? Math.round(hyp(p[0] - e.e, p[1] - e.n)) : 0;
+    const lx = X(p[0]), ly = Y(p[1]), txt = "GNSS says you went this way · " + off + " m off";
+    ctx.font = "800 12px system-ui"; const tw = ctx.measureText(txt).width;
+    const tx = clamp(lx - tw / 2, 8, cv.clientWidth - tw - 8), ty = clamp(ly - 12, 70, cv.clientHeight - 36);
+    ctx.fillStyle = "rgba(11,16,32,.8)"; ctx.fillRect(tx - 4, ty - 13, tw + 8, 18);
+    ctx.fillStyle = "#f43f5e"; ctx.fillText(txt, tx, ty);
+  }
+  // truth marker
+  if (S.truth) { dot(X(S.truth.e), Y(S.truth.n), 4.5, "#e5e7eb"); }
+  // estimate marker
+  if (e && e.init) {
+    const x = X(e.e), y = Y(e.n), r = Math.max(6, e.unc / v.mpp);
+    ctx.fillStyle = "rgba(167,139,250,.13)"; ctx.strokeStyle = "rgba(167,139,250,.5)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.save(); ctx.translate(x, y); ctx.rotate(e.th); ctx.fillStyle = col[e.state] || "#a78bfa"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(7, 8); ctx.lineTo(0, 4); ctx.lineTo(-7, 8); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+  }
+  // scale bar
+  const target = 80 * v.mpp, pow = Math.pow(10, Math.floor(Math.log10(target))); const nice = [1, 2, 5, 10].map(k => k * pow).find(k => k >= target) || pow * 10; const px = nice / v.mpp;
+  ctx.fillStyle = "rgba(11,16,32,.75)"; ctx.fillRect(8, H - 28, px + 54, 20);
+  ctx.strokeStyle = "#e6ebf5"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(14, H - 14); ctx.lineTo(14 + px, H - 14); ctx.stroke();
+  ctx.fillStyle = "#e6ebf5"; ctx.font = "600 11px system-ui"; ctx.fillText(nice >= 1000 ? nice / 1000 + " km" : nice + " m", 20 + px, H - 10);
+  $("attr").textContent = S.mode === "sim" ? "Simulated city · 150 m blocks" : "© OpenStreetMap contributors";
+}
+function line(arr, X, Y, color, w, dash) { if (arr.length < 2) return; ctx.strokeStyle = color; ctx.lineWidth = w; ctx.setLineDash(dash || []); ctx.beginPath(); ctx.moveTo(X(arr[0][0]), Y(arr[0][1])); for (let i = 1; i < arr.length; i++) ctx.lineTo(X(arr[i][0]), Y(arr[i][1])); ctx.stroke(); ctx.setLineDash([]); }
+function dot(x, y, r, c) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); }
+function drawCity(X, Y) {
+  const v = S.view;
+  ctx.fillStyle = "#151f38";
+  for (let x = -150; x < 600; x += 150) for (let y = -150; y < 600; y += 150) { const a = X(x + 9), b = Y(y + 141), w = (132) / v.mpp; ctx.fillRect(a, b, w, w); }
+  ctx.lineCap = "butt"; ctx.strokeStyle = "#26324f"; ctx.lineWidth = Math.max(3, 14 / v.mpp);
+  for (const s of CITY.streets) { ctx.beginPath(); ctx.moveTo(X(s[0]), Y(s[1])); ctx.lineTo(X(s[2]), Y(s[3])); ctx.stroke(); }
+  ctx.strokeStyle = "rgba(167,139,250,.18)"; ctx.lineWidth = Math.max(2, 8 / v.mpp); ctx.beginPath();
+  CITY.pts.forEach((p, i) => i ? ctx.lineTo(X(p[0]), Y(p[1])) : ctx.moveTo(X(p[0]), Y(p[1]))); ctx.stroke();
+  const T = CITY.tunnel; ctx.fillStyle = "rgba(251,191,36,.18)"; ctx.strokeStyle = "rgba(251,191,36,.6)"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+  ctx.fillRect(X(T.x0 - 6), Y(T.y1), (T.x1 - T.x0 + 12) / v.mpp, (T.y1 - T.y0) / v.mpp); ctx.strokeRect(X(T.x0 - 6), Y(T.y1), (T.x1 - T.x0 + 12) / v.mpp, (T.y1 - T.y0) / v.mpp); ctx.setLineDash([]);
+  ctx.fillStyle = "#fbbf24"; ctx.font = "800 11px system-ui"; ctx.save(); ctx.translate(X(T.x1 + 12), Y(T.y1 - 50)); ctx.rotate(-Math.PI / 2); ctx.textAlign = "center"; ctx.fillText("TUNNEL · no sky", 0, 0); ctx.restore(); ctx.textAlign = "left";
+}
+
+/* geo helpers + OSM tiles */
+const R_E = 6371000;
+function toENU(lat, lng) { const o = S.sens.origin; return [(lng - o[1]) * DEG * R_E * Math.cos(o[0] * DEG), (lat - o[0]) * DEG * R_E]; }
+function toLL(e, n) { const o = S.sens.origin; return [o[0] + n / R_E / DEG, o[1] + e / (R_E * Math.cos(o[0] * DEG)) / DEG]; }
+function drawTiles(X, Y, W, H) {
+  if (!S.sens.origin) { ctx.fillStyle = "#8d9ab6"; ctx.font = "600 13px system-ui"; ctx.textAlign = "center"; ctx.fillText(S.mode === "live" ? "Waiting for the phone’s first GPS fix…" : "Load a CSV log to replay", W / 2, H / 2); ctx.textAlign = "left"; return; }
+  const o = S.sens.origin;
+  let z = Math.round(Math.log2(156543.03 * Math.cos(o[0] * DEG) / S.view.mpp)); z = clamp(z, 3, 19);
+  const nw = toLL(S.view.cx - W / 2 * S.view.mpp, S.view.cy + H / 2 * S.view.mpp), se = toLL(S.view.cx + W / 2 * S.view.mpp, S.view.cy - H / 2 * S.view.mpp);
+  const tx = (lng) => (lng + 180) / 360 * Math.pow(2, z), ty = (lat) => (1 - Math.log(Math.tan(lat * DEG) + 1 / Math.cos(lat * DEG)) / Math.PI) / 2 * Math.pow(2, z);
+  const lngOf = x => x / Math.pow(2, z) * 360 - 180, latOf = y => { const nn = Math.PI - 2 * Math.PI * y / Math.pow(2, z); return Math.atan(Math.sinh(nn)) / DEG; };
+  const x0 = Math.floor(tx(nw[1])), x1 = Math.floor(tx(se[1])), y0 = Math.floor(ty(nw[0])), y1 = Math.floor(ty(se[0]));
+  if ((x1 - x0 + 1) * (y1 - y0 + 1) > 40) return;
+  for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
+    const key = z + "/" + x + "/" + y; let im = S.tiles[key];
+    if (!im) { im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => render(); im.src = "https://tile.openstreetmap.org/" + key + ".png"; S.tiles[key] = im; }
+    if (im.complete && im.naturalWidth) { const a = toENU(latOf(y), lngOf(x)), b = toENU(latOf(y + 1), lngOf(x + 1)); ctx.drawImage(im, X(a[0]), Y(a[1]), X(b[0]) - X(a[0]), Y(b[1]) - Y(a[1])); }
+  }
+  ctx.fillStyle = "rgba(11,16,32,.28)"; ctx.fillRect(0, 0, W, H);
+}
+
+/* ═══════════════ phone sensors ═══════════════ */
+const STRIDE_M = 0.68;
+function startLiveSensors() {
+  S.liveStarted = true;
+  const go = () => {
+    if (!navigator.geolocation) { addLog("INFO", "Geolocation not available in this browser"); return; }
+    navigator.geolocation.watchPosition(onFix, err => { const now = Date.now(); if (!S.gpsErrT || now - S.gpsErrT > 15000) { S.gpsErrT = now; addLog("INFO", "GPS: " + (err.message || "waiting for a fix") + " (code " + err.code + ")"); } }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+    addLog("INFO", "Phone sensors started · walk to see dead reckoning work");
+  };
+  if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+    Promise.all([DeviceMotionEvent.requestPermission().catch(() => "denied"), DeviceOrientationEvent.requestPermission().catch(() => "denied")]).then(([a, b]) => { if (a !== "granted") addLog("INFO", "Motion permission denied — no step odometry"); if (b !== "granted") addLog("INFO", "Orientation permission denied — no compass"); go(); });
+  } else go();
+  let last = 0;
+  // Step detector: remove gravity, look for peaks, and only count peaks that come in a walking rhythm
+  const SD = { g: null, lastT: 0, armed: true, cand: 0, streak: 0 };
+  window.addEventListener("devicemotion", ev => {
+    const a = ev.accelerationIncludingGravity; if (!a || a.x == null) return; S.sens.motion = true;
+    const mag = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z), now = Date.now();
+    const dt = SD.lastT ? Math.min(0.5, (now - SD.lastT) / 1000) : 0.02; SD.lastT = now;
+    SD.g = SD.g == null ? mag : SD.g + (mag - SD.g) * (dt / (dt + 0.8));      // slow average = gravity
+    const dyn = mag - SD.g;                                                    // what is left = body movement
+    if (dyn < 0.4) SD.armed = true;
+    if (SD.armed && dyn > 1.6 && now - last > 280) {                           // a peak
+      SD.armed = false;
+      const gap = (now - last) / 1000; last = now;
+      if (gap >= 0.28 && gap <= 1.4) { SD.streak++; if (SD.streak >= 2) { S.sens.stepTimes.push(now); if (SD.streak === 2) S.sens.stepTimes.push(now - gap * 1000); } }
+      else SD.streak = 1;                                                      // a lone bump is not a step
+    }
+  });
+  const onOri = ev => {
+    let h = null;
+    if (ev.webkitCompassHeading != null) h = ev.webkitCompassHeading;
+    else if (ev.absolute && ev.alpha != null) h = (360 - ev.alpha) % 360;
+    if (h == null) return;
+    const scr = (screen.orientation && screen.orientation.angle) || 0; h = (h + scr) % 360;
+    const r = h * DEG; S.sens.head = S.sens.head == null ? r : wrapPi(S.sens.head + 0.3 * wrapPi(r - S.sens.head)); S.sens.compass = true;
+  };
+  if ("ondeviceorientationabsolute" in window) window.addEventListener("deviceorientationabsolute", onOri); else window.addEventListener("deviceorientation", onOri);
+}
+function onFix(pos) {
+  const c = pos.coords; if (!S.sens.origin) { S.sens.origin = [c.latitude, c.longitude]; S.view.cx = 0; S.view.cy = 0; S.view.mpp = 0.5; }
+  const [e, n] = toENU(c.latitude, c.longitude);
+  const f = { type: "fix", e, n, acc: c.accuracy || 10 };
+  if (c.speed != null && !isNaN(c.speed) && c.heading != null && !isNaN(c.heading)) { f.ve = c.speed * Math.sin(c.heading * DEG); f.vn = c.speed * Math.cos(c.heading * DEG); }
+  else if (c.speed != null && !isNaN(c.speed) && c.speed < 0.3) { f.ve = 0; f.vn = 0; }
+  S.sens.fixes.push(f);
+}
+
+/* ═══════════════ replay ═══════════════ */
+$("csvFile").addEventListener("change", ev => {
+  const file = ev.target.files[0]; if (!file) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    const lines = rd.result.trim().split(/\r?\n/); const hdr = lines[0].split(",").map(s => s.trim().toLowerCase());
+    const ix = k => hdr.indexOf(k);
+    const iT = ix("timestamp_ms"), iLa = ix("real_lat"), iLn = ix("real_lng"), iAc = ix("acc_m"), iSp = ix("speed_kph"), iHd = ix("heading_deg"), iSt = ix("steps");
+    if (iT < 0 || iLa < 0 || iLn < 0) { alert("CSV needs timestamp_ms, real_lat and real_lng columns (the TRUST phone log format)."); return; }
+    const raw = lines.slice(1).map(l => l.split(",")).filter(c => c[iLa] && c[iLn] && !isNaN(+c[iLa]));
+    if (!raw.length) { alert("No GPS rows found in this file."); return; }
+    S.sens.origin = [+raw[0][iLa], +raw[0][iLn]];
+    let lastLL = "", lastSteps = null, lastT = null; const rows = [];
+    for (const c of raw) {
+      const ts = +c[iT], lat = +c[iLa], lng = +c[iLn], r = { ts };
+      if (iHd >= 0 && c[iHd] !== "") r.head = +c[iHd];
+      let v = null; if (iSp >= 0 && c[iSp] !== "") v = +c[iSp] / 3.6;
+      else if (iSt >= 0 && c[iSt] !== "" && lastSteps != null && ts > lastT) v = Math.max(0, (+c[iSt] - lastSteps) * STRIDE_M / ((ts - lastT) / 1000));
+      if (iSt >= 0 && c[iSt] !== "") { lastSteps = +c[iSt]; lastT = ts; }
+      r.v = v;
+      const k = lat.toFixed(7) + lng.toFixed(7);
+      if (k !== lastLL) { lastLL = k; const [e, n] = toENU(lat, lng); r.fix = { type: "fix", e, n, acc: iAc >= 0 && c[iAc] !== "" ? +c[iAc] || 8 : 8 }; if (v != null && r.head != null) { r.fix.ve = v * Math.sin(r.head * DEG); r.fix.vn = v * Math.cos(r.head * DEG); } }
+      rows.push(r);
+    }
+    rows.sort((a, b) => a.ts - b.ts);
+    S.replay.rows = rows; S.replay.t0 = rows[0].ts; S.replay.name = file.name; S.view.cx = 0; S.view.cy = 0; S.view.mpp = 0.6;
+    resetSession(false); addLog("INFO", "Loaded " + file.name + " · " + rows.length + " rows · " + ((rows[rows.length - 1].ts - rows[0].ts) / 1000).toFixed(0) + " s of data");
+    startStop();
+  };
+  rd.readAsText(file); ev.target.value = "";
+});
+
+/* ═══════════════ 60-scenario batch test ═══════════════ */
+function runScenario(seed, sc) {
+  const rnd = mulberry32(seed * 7919 + 13);
+  const W = new SimWorld(seed, { tunnel: false, startS: rnd() * CITY.total });
+  const E = new TrustEngine({ segs: CITY.segs }), A = new Attack();
+  const dt = 0.1; let t = 0, detLat = null, recT = null, false1 = false, maxErr = 0, restoreAt = null;
+  const onset = 25 + rnd() * 20, dur = sc.type === "jam" ? 60 : sc.type === "spoof" ? 30 : 0, end = sc.type === "clean" ? 120 : onset + dur + 20;
+  let attacked = false;
+  while (t < end) {
+    t += dt;
+    if (!attacked && sc.type !== "clean" && t >= onset) {
+      attacked = true;
+      const b = rnd() * 2 * Math.PI;
+      if (sc.type === "jam") A.start("jam", t);
+      else if (sc.kind === "drag") A.start("spoof", t, { kind: "drag", speed: 2 + rnd() * 3, bearing: b });
+      else { const d = 40 + rnd() * 260; A.start("spoof", t, { kind: "jump", je: d * Math.sin(b), jn: d * Math.cos(b) }); }
+    }
+    if (attacked && restoreAt == null && t >= onset + dur) { A.stop(); restoreAt = t; }
+    const o = W.step(dt);
+    E.step(t, dt, { v: o.odo, yawRate: o.gyro, gnss: A.apply(o.gnss, t) });
+    for (const ev of E.events.splice(0)) {
+      if (ev.from === "INIT") continue;
+      if (!attacked && ev.to !== "NORMAL") false1 = true;
+      const expect = sc.type === "jam" ? "DEGRADED" : "ALERT";
+      if (attacked && restoreAt == null && detLat == null && ev.to === expect) detLat = t - onset;
+      if (restoreAt != null && recT == null && ev.to === "NORMAL") recT = t - restoreAt;
+    }
+    if (attacked && restoreAt == null && E.state !== "NORMAL") maxErr = Math.max(maxErr, hyp(E.e - o.truth.e, E.n - o.truth.n));
+  }
+  return { detLat, recT, false1, maxErr, detected: detLat != null && detLat <= 10 };
+}
+function runBatch() {
+  const btn = $("testBtn"); btn.disabled = true; btn.textContent = "Running…";
+  setTimeout(() => {
+    const t0 = performance.now(), seed0 = Math.floor(Math.random() * 1e6);
+    const scs = []; for (let i = 0; i < 25; i++) scs.push({ type: "jam" }); for (let i = 0; i < 15; i++) scs.push({ type: "spoof", kind: "drag" }); for (let i = 0; i < 10; i++) scs.push({ type: "spoof", kind: "jump" }); for (let i = 0; i < 10; i++) scs.push({ type: "clean" });
+    const res = scs.map((sc, i) => Object.assign({ sc }, runScenario(seed0 + i, sc)));
+    const att = res.filter(r => r.sc.type !== "clean"), det = att.filter(r => r.detected);
+    const lats = det.map(r => r.detLat), recs = att.map(r => r.recT).filter(x => x != null);
+    const jams = res.filter(r => r.sc.type === "jam"), held = jams.filter(r => r.maxErr <= 5);
+    const B = {
+      n: res.length, rate: det.length / att.length * 100, det: det.length, att: att.length,
+      latMean: lats.reduce((a, b) => a + b, 0) / (lats.length || 1), latMax: Math.max(...lats), latMaxJam: Math.max(...det.filter(r => r.sc.type === "jam").map(r => r.detLat)),
+      latMaxDrag: Math.max(...det.filter(r => r.sc.kind === "drag").map(r => r.detLat)), latMaxJump: Math.max(...det.filter(r => r.sc.kind === "jump").map(r => r.detLat)),
+      falseAlarms: res.filter(r => r.false1).length, recMax: Math.max(...recs), recMean: recs.reduce((a, b) => a + b, 0) / (recs.length || 1),
+      held: held.length, jams: jams.length, worstErr: Math.max(...jams.map(r => r.maxErr)), meanErr: jams.reduce((a, r) => a + r.maxErr, 0) / jams.length,
+      ms: performance.now() - t0, seed: seed0, when: new Date().toLocaleTimeString()
+    };
+    S.batch = B; showBatch(); updateReqs(); updateProof();
+    addLog("INFO", "60-scenario test: detection " + B.rate.toFixed(0) + "%, max " + B.latMax.toFixed(1) + " s, false alarms " + B.falseAlarms);
+    btn.disabled = false; btn.textContent = "Run again";
+  }, 30);
+}
+function showBatch() {
+  const B = S.batch; if (!B) return;
+  const p = (ok) => '<span class="pill ' + (ok ? "pass" : "fail") + '">' + (ok ? "PASS" : "FAIL") + "</span>";
+  $("testOut").innerHTML = '<div class="tablewrap" style="margin-top:10px"><table>' +
+    "<tr><th>Measure</th><th>Result</th><th>Target</th><th></th></tr>" +
+    "<tr><td>Detection rate (50 attacks)</td><td><b>" + B.rate.toFixed(0) + "%</b> (" + B.det + "/" + B.att + ")</td><td>≥ 95%</td><td>" + p(B.rate >= 95) + "</td></tr>" +
+    "<tr><td>Detection time · jamming (max)</td><td><b>" + B.latMaxJam.toFixed(1) + " s</b></td><td>≤ 2 s</td><td>" + p(B.latMaxJam <= 2.05) + "</td></tr>" +
+    "<tr><td>Detection time · gradual spoof (max)</td><td><b>" + B.latMaxDrag.toFixed(1) + " s</b></td><td>≤ 2 s</td><td>" + p(B.latMaxDrag <= 2.05) + "</td></tr>" +
+    "<tr><td>Detection time · sudden jump (max)</td><td><b>" + B.latMaxJump.toFixed(1) + " s</b></td><td>≤ 2 s</td><td>" + p(B.latMaxJump <= 2.05) + "</td></tr>" +
+    "<tr><td>Backup accuracy, 60 s jams</td><td><b>" + B.held + "/" + B.jams + "</b> within 5 m · worst " + B.worstErr.toFixed(1) + " m</td><td>≤ 5 m for ≥ 60 s</td><td>" + p(B.held === B.jams) + "</td></tr>" +
+    "<tr><td>Recovery after attack ends (max)</td><td><b>" + B.recMax.toFixed(1) + " s</b> · mean " + B.recMean.toFixed(1) + " s</td><td>≤ 5 s</td><td>" + p(B.recMax <= 5) + "</td></tr>" +
+    "<tr><td>False alarms (all 60 runs)</td><td><b>" + B.falseAlarms + "</b></td><td>0</td><td>" + p(B.falseAlarms === 0) + "</td></tr>" +
+    '</table></div><p class="muted small" style="margin-top:6px">Ran in ' + Math.round(B.ms) + " ms · seed " + B.seed + " · " + B.when + ". Simulated sensor errors per run: odometry scale ±0.4%, gyro bias ±0.03°/s, GNSS noise 2 m, GNSS velocity noise 0.12 m/s.</p>";
+}
+
+/* ═══════════════ requirements & proof ═══════════════ */
+const REQS = [
+  ["Detect GNSS loss or spoofing within ≤ 2 s", "Detection latency"],
+  ["Keep position within 5 m for ≥ 60 s on backup sensors", "Accuracy floor"],
+  ["Fuse GNSS, IMU and wheel odometry at ≥ 10 Hz", "Engine speed"],
+  ["Flag low confidence to the operator within 1 s", "Alert latency"],
+  ["Re-validate and restore GNSS trust within 5 s", "Recovery"],
+  ["Use only existing in-vehicle sensors — no new hardware", "Hardware constraint"],
+  ["Log every state change with a timestamp", "Auditability"],
+  ["Achieve ≥ 95% detection in simulated jamming/spoofing", "Detection quality"],
+  ["Deploy by software update — no roadside infrastructure", "Deployability"]
+];
+function reqStatus() {
+  const B = S.batch, out = [];
+  const maxDet = S.dets.length ? Math.max(...S.dets) : null;
+  out.push(B ? [B.latMax <= 2.05, "Test: max " + B.latMax.toFixed(1) + " s over " + B.det + " detections" + (maxDet != null ? " · session max " + maxDet.toFixed(1) + " s" : "")] : maxDet != null ? [maxDet <= 2.05, "Session: max " + maxDet.toFixed(1) + " s (" + S.dets.length + " detections)"] : [null, "Not measured yet — trigger Jam / Spoof or run the test"]);
+  out.push(B ? [B.held === B.jams, "Test: " + B.held + "/" + B.jams + " 60 s jams within 5 m (worst " + B.worstErr.toFixed(1) + " m)"] : S.best60 ? [true, "Session: held ≤ 5 m for " + Math.round(S.best60) + " s"] : [null, "Not measured yet — jam for 60 s (use 10×) or run the test"]);
+  out.push(S.rateWin.hz != null ? [true, "Engine runs at 10 updates per second" + (S.mode === "live" ? " (live: " + S.rateWin.hz.toFixed(1) + " Hz)" : "")] : [null, "Measured once the demo is running"]);
+  const al = S.alerts.length ? Math.max(...S.alerts) : null;
+  out.push(al != null ? [al <= 1000, "Session: worst " + Math.round(al) + " ms from detection to banner on screen"] : [null, "Measured on the first detection in tab 2"]);
+  const recS = S.recs.length ? Math.max(...S.recs) : null;
+  out.push(B ? [B.recMax <= 5, "Test: max " + B.recMax.toFixed(1) + " s" + (recS != null ? " · session max " + recS.toFixed(1) + " s" : "")] : recS != null ? [recS <= 5, "Session: max " + recS.toFixed(1) + " s"] : [null, "Not measured yet — press Restore after an attack"]);
+  out.push([true, "Inputs: GNSS, wheel-speed, gyroscope, road map — all standard on vehicles"]);
+  const sc = S.log.filter(r => ["NORMAL", "DEGRADED", "ALERT", "RECOVERING"].includes(r.type)).length;
+  out.push(sc ? [true, sc + " state changes logged with timestamps · export as CSV"] : [null, "Logged once the demo runs"]);
+  out.push(B ? [B.rate >= 95, "Test: " + B.rate.toFixed(0) + "% (" + B.det + "/" + B.att + "), " + B.falseAlarms + " false alarms"] : [null, "Run the 60-scenario test"]);
+  out.push([true, "Runs as software in a browser; no roadside equipment"]);
+  return out;
+}
+function updateReqs() {
+  const st = reqStatus();
+  $("reqList").innerHTML = REQS.map((r, i) => { const [ok, m] = st[i]; const cls = ok === true ? "pass" : ok === false ? "fail" : "pend"; const lab = ok === true ? "PASS" : ok === false ? "FAIL" : "TO TEST";
+    return '<div class="req"><div class="num">' + (i + 1) + '</div><div><div class="t">' + r[0] + '</div><div class="m">' + m + '</div></div><span class="pill ' + cls + '">' + lab + "</span></div>"; }).join("");
+}
+function updateProof() {
+  const B = S.batch;
+  $("proof").innerHTML = B ? '<ul class="clean">' +
+    "<li><b>" + B.rate.toFixed(0) + "%</b> of 50 simulated attacks detected, with <b>" + B.falseAlarms + "</b> false alarms in 60 runs.</li>" +
+    "<li>Jamming detected in at most <b>" + B.latMaxJam.toFixed(1) + " s</b>; spoofing in at most <b>" + Math.max(B.latMaxDrag, B.latMaxJump).toFixed(1) + " s</b> — including slow drag-off spoofing.</li>" +
+    "<li>Backup positioning stayed within <b>5 m</b> for 60 s in <b>" + B.held + " of " + B.jams + "</b> jamming runs (worst " + B.worstErr.toFixed(1) + " m).</li>" +
+    "<li>GNSS trusted again <b>" + B.recMean.toFixed(1) + " s</b> on average after the attack ended.</li>" +
+    '</ul><p class="muted" style="margin-top:6px">From the 60-scenario test run at ' + B.when + ". Simulated attacks and sensor errors; see tab 1 for what is real.</p>"
+    : '<p class="muted">Run the 60-scenario test in tab 2 to fill this in with measured numbers.</p><div class="row" style="margin-top:8px"><button class="btn sm" onclick="gotoTest()">Go to the test →</button></div>';
+}
+
+/* ═══════════════ tabs & modes ═══════════════ */
+function showTab(name) {
+  document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
+  document.querySelectorAll("section.tab").forEach(s => s.classList.toggle("on", s.id === "tab-" + name));
+  if (name === "demo") setTimeout(sizeCanvas, 30);
+  window.scrollTo({ top: 0 });
+}
+document.querySelectorAll("nav.tabs button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+function gotoTest() { showTab("demo"); setTimeout(() => $("testCard").scrollIntoView({ behavior: "smooth" }), 80); }
+const HELP = {
+  sim: "A bus drives a loop through a simulated city with a tunnel, using simulated wheel-speed and gyro data with realistic errors. Works offline. Use 4× or 10× for long outages.",
+  live: "Uses this phone’s real GPS, compass and step counter (walking stands in for wheel pulses). Outdoors: press Start. Stand still — the arrow stays. Walk — it moves with you. Press Spoof — the GNSS starts to lie and TRUST catches it. Attacks are simulated; the real GPS stays as the truth reference.",
+  replay: "Replays a CSV log recorded by the earlier TRUST phone client (columns timestamp_ms, real_lat, real_lng, heading_deg, steps). Works offline except the map background."
+};
+document.querySelectorAll("#modeSeg button").forEach(b => b.onclick = () => {
+  if (S.running) startStop();
+  document.querySelectorAll("#modeSeg button").forEach(x => x.classList.toggle("on", x === b));
+  S.mode = b.dataset.mode; $("modeHelp").textContent = HELP[S.mode];
+  $("loadBtn").style.display = S.mode === "replay" ? "" : "none";
+  $("speedSeg").style.display = S.mode === "live" ? "none" : "";
+  $("httpsWarn").classList.toggle("show", S.mode === "live" && !window.isSecureContext);
+  $("startBtn").textContent = "▶ Start"; resetSession(false);
+});
+document.querySelectorAll("#speedSeg button").forEach(b => b.onclick = () => { document.querySelectorAll("#speedSeg button").forEach(x => x.classList.toggle("on", x === b)); S.speed = +b.dataset.speed; });
+document.querySelectorAll("#spoofSeg button").forEach(b => b.onclick = () => { document.querySelectorAll("#spoofSeg button").forEach(x => x.classList.toggle("on", x === b)); S.spoofKind = b.dataset.sp; });
+
+$("modeHelp").textContent = HELP.sim;
+S.view.cx = 150; S.view.cy = 220;
+resetSession(false); updateProof(); sizeCanvas();
+</script>
+</body>
+</html>
